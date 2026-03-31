@@ -1,0 +1,30 @@
+brand:
+  primary_color: "#FFFFFF"
+  accent_color: "#FFFF00"
+  font: "Montserrat-ExtraBold"
+  stroke_color: "#000000"
+  stroke_width: 4
+
+captions:
+  words_per_group: 3
+  position: center_above_middle
+  font_size: 65
+
+thumbnail:
+  width: 1280
+  height: 720
+  cartoon_strength: medium
+  text_position: right
+
+youtube:
+  channel_id: "UCfUwFv55iNkEUybk_tFHsxA"
+  default_tags:
+    - Princeton Offense
+    - Basketball Coaching
+    - Basketball Plays
+    - Youth Basketball
+    - Coaching Tips
+  default_privacy: private
+
+blog:
+  base_url: "https://coachprincetonbasketball.com/blog"

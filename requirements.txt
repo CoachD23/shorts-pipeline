@@ -1,0 +1,6 @@
+openai-whisper>=20240930
+opencv-python-headless>=4.9
+Pillow>=12.0
+PyYAML>=6.0
+google-api-python-client>=2.100
+google-auth-oauthlib>=1.2

@@ -1,0 +1,17 @@
+🏀 {title} — Princeton Offense Breakdown
+
+{summary}
+
+📋 Full Written Breakdown:
+{blog_url}
+
+⏱️ Timestamps:
+{timestamps}
+
+🏷️ Tags:
+{tags}
+
+📚 More Princeton Offense Content:
+► Subscribe: https://www.youtube.com/@CoachPrincetonBasketball?sub_confirmation=1
+
+© CoachPrincetonBasketball.com
