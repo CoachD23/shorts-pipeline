@@ -121,19 +121,45 @@ def _load_font(font_path: str | None, size: int) -> ImageFont.FreeTypeFont | Ima
     return ImageFont.load_default(size=size)
 
 
-def _calculate_font_size(canvas_height: int, word_count: int) -> int:
-    """Dynamic font size — fewer words = bigger text.
+def _calculate_font_size(
+    canvas_width: int,
+    canvas_height: int,
+    words: list[str],
+    font_path: str | None,
+    position: str = "right",
+) -> int:
+    """Auto-fit font size so the longest word fits within the text zone.
 
-    At 900px canvas height:
-    - 2 words: ~250px (fills the frame)
-    - 3 words: ~200px (standard)
-    - 4 words: ~170px
-    - 5+ words: ~150px
+    Measures actual rendered text width and scales down if needed.
+    Target: ~9.6% of shorter dimension as baseline, clamped to fit.
     """
-    base = canvas_height // 5  # ~180px at 900
-    # Scale up for fewer words: 2 words get 1.4x, 3 get 1.15x, 4+ get 1.0x
-    scale = max(1.0, 1.0 + (4 - word_count) * 0.2)
-    return int(base * scale)
+    # Text zone width (roughly half the canvas minus margins)
+    if position in ("right", "left"):
+        zone_width = int(canvas_width * 0.45)
+    else:
+        zone_width = int(canvas_width * 0.85)
+
+    # Max height per line (canvas height / (word_count + 1) for spacing)
+    max_line_height = int(canvas_height / (len(words) + 1))
+
+    # Start with baseline and shrink if any word overflows
+    base = int(min(canvas_width, canvas_height) * 0.096)  # ~86px at 900
+    font_size = min(base, max_line_height)
+
+    # Binary search for the largest size that fits
+    for size in range(font_size * 2, 40, -2):
+        font = _load_font(font_path, size)
+        fits = True
+        for word in words:
+            bbox = font.getbbox(word.upper())
+            word_width = bbox[2] - bbox[0]
+            if word_width > zone_width:
+                fits = False
+                break
+        if fits:
+            return size
+
+    return 60  # absolute minimum
 
 
 def add_text_overlay(
@@ -162,8 +188,8 @@ def add_text_overlay(
     words = hook_text.upper().split()
     accent_upper = accent_word.upper()
 
-    # Dynamic font size
-    font_size = _calculate_font_size(height, len(words))
+    # Auto-fit font size to text zone
+    font_size = _calculate_font_size(width, height, words, font_path, position)
     font = _load_font(font_path, font_size)
 
     # Stroke scales with font size (5% of font size, min 4px)
