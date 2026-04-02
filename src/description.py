@@ -114,3 +114,47 @@ def save_instagram_caption(transcript: dict, title: str, config: dict, output_di
     caption_path = output_dir / "instagram_caption.txt"
     caption_path.write_text(caption)
     return caption_path
+
+
+def generate_blog_embed(transcript: dict, title: str, config: dict, video_id: str = "") -> str:
+    """Generate ready-to-paste HTML for embedding video + transcript in blog.
+
+    Args:
+        transcript: Whisper transcript.
+        title: Video title.
+        config: Config dict.
+        video_id: YouTube video ID (if uploaded). Empty = use placeholder.
+    """
+    blog_config = config.get("blog", {})
+    slug = _slugify(title)
+
+    if video_id:
+        embed_html = f'<iframe width="560" height="315" src="https://www.youtube.com/embed/{video_id}" frameborder="0" allowfullscreen></iframe>'
+    else:
+        embed_html = f'<!-- Replace VIDEO_ID with your YouTube video ID -->\n<iframe width="560" height="315" src="https://www.youtube.com/embed/VIDEO_ID" frameborder="0" allowfullscreen></iframe>'
+
+    # Build transcript as readable paragraphs
+    full_text = transcript.get("text", "").strip()
+
+    return f"""<!-- Blog Embed: {title} -->
+<div class="video-embed">
+  <h3>{title}</h3>
+  {embed_html}
+</div>
+
+<div class="video-transcript">
+  <details>
+    <summary>📝 Read the full transcript</summary>
+    <p>{full_text}</p>
+  </details>
+</div>
+"""
+
+
+def save_blog_embed(transcript: dict, title: str, config: dict, output_dir: Path, video_id: str = "") -> Path:
+    """Save blog embed HTML to file."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    html = generate_blog_embed(transcript, title, config, video_id)
+    html_path = output_dir / "blog_embed.html"
+    html_path.write_text(html)
+    return html_path

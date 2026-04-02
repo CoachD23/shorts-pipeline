@@ -10,7 +10,7 @@ import yaml
 from src.transcribe import transcribe_video, save_transcript
 from src.captions import save_captions
 from src.thumbnail import generate_thumbnail
-from src.description import generate_description, save_description, save_instagram_caption
+from src.description import generate_description, save_description, save_instagram_caption, save_blog_embed
 from src.video import process_video, extract_frame
 from src.upload import upload_video
 from src.music import find_music_file, build_music_ffmpeg_args
@@ -34,6 +34,8 @@ def run_pipeline(
     source_image: str = "",       # NEW
     no_filter: bool = False,      # NEW
     music_dir: str = "music",
+    variants: int = 0,
+    publish_at: str = "",
 ) -> dict:
     """Run the full pipeline on a single video."""
     config = load_config(config_path)
@@ -75,6 +77,18 @@ def run_pipeline(
         output_dir=str(output_dir),
     )
 
+    variant_paths = []
+    if variants > 0:
+        from src.thumbnail import generate_thumbnail_variants
+        variant_paths = generate_thumbnail_variants(
+            source_image_path=frame_path,
+            hook_text=hook_text or title.upper(),
+            accent_word=accent_word or title.split()[-1].upper(),
+            config=thumb_config if no_filter else config,
+            output_dir=str(output_dir),
+            variant_count=variants,
+        )
+
     print(f"[5/6] Generating YouTube description...")
     desc_path = save_description(transcript, title, config, output_dir)
 
@@ -100,6 +114,8 @@ def run_pipeline(
         "videos": video_outputs,
         "music": music_path or "",
     }
+    if variant_paths:
+        result["thumbnail_variants"] = variant_paths
 
     if upload:
         print("Uploading to YouTube...")
@@ -115,10 +131,18 @@ def run_pipeline(
                 tags=tags,
                 privacy=privacy,
                 thumbnail_path=thumb_path,
+                publish_at=publish_at or None,
             )
             result["youtube_id"] = video_id
             result["youtube_url"] = f"https://youtube.com/shorts/{video_id}"
             print(f"Uploaded: https://youtube.com/shorts/{video_id}")
+
+    # Blog embed HTML
+    blog_embed_path = save_blog_embed(
+        transcript, title, config, output_dir,
+        video_id=result.get("youtube_id", ""),
+    )
+    result["blog_embed"] = str(blog_embed_path)
 
     print(f"\nDone! Output: {output_dir}")
     return result

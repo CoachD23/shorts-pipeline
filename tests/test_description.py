@@ -1,5 +1,5 @@
 """Tests for YouTube description generator."""
-from src.description import generate_description, detect_timestamps, generate_instagram_caption
+from src.description import generate_description, detect_timestamps, generate_instagram_caption, generate_blog_embed
 
 
 def test_detect_timestamps_finds_pauses():
@@ -43,3 +43,19 @@ def test_generate_instagram_caption():
     assert "#PrincetonOffense" in caption
     assert "#BasketballTips" in caption
     assert "link in bio" in caption
+
+
+def test_generate_blog_embed_with_video_id():
+    transcript = {"text": "This is a test transcript.", "segments": []}
+    config = {"blog": {"base_url": "https://test.com/blog"}}
+    html = generate_blog_embed(transcript, "Test Video", config, video_id="abc123")
+    assert "abc123" in html
+    assert "<iframe" in html
+    assert "Test Video" in html
+    assert "This is a test transcript" in html
+
+def test_generate_blog_embed_no_video_id():
+    transcript = {"text": "Test.", "segments": []}
+    config = {"blog": {"base_url": "https://test.com/blog"}}
+    html = generate_blog_embed(transcript, "Test", config, video_id="")
+    assert "VIDEO_ID" in html
