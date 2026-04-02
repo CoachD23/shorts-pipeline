@@ -14,6 +14,7 @@ from src.description import generate_description, save_description, save_instagr
 from src.video import process_video, extract_frame
 from src.upload import upload_video
 from src.music import find_music_file, build_music_ffmpeg_args
+from src.hooks import detect_hook
 
 
 def load_config(config_path: str) -> dict:
@@ -49,6 +50,13 @@ def run_pipeline(
 
     print(f"[2/6] Saving transcript...")
     json_path, md_path = save_transcript(transcript, output_dir, title)
+
+    # Auto-detect hook for thumbnail
+    hook_suggestion = detect_hook(transcript)
+    if hook_suggestion["score"] > 0.2 and not hook_text:
+        print(f"  Suggested hook: \"{hook_suggestion['hook_text']}\" (accent: {hook_suggestion['accent_word']})")
+        hook_text = hook_suggestion["hook_text"]
+        accent_word = hook_suggestion["accent_word"]
 
     # Find background music (optional)
     music_path = find_music_file(music_dir)
@@ -113,6 +121,7 @@ def run_pipeline(
         "instagram_caption": str(ig_path),
         "videos": video_outputs,
         "music": music_path or "",
+        "hook_suggestion": hook_suggestion,
     }
     if variant_paths:
         result["thumbnail_variants"] = variant_paths
@@ -165,7 +174,20 @@ def main():
     parser.add_argument("--no-music", action="store_true", help="Skip background music")
     parser.add_argument("--music-dir", default="music", help="Directory containing music files")
     parser.add_argument("--publish-at", default="", help="Schedule publish time (ISO 8601, e.g. '2026-04-02T09:00:00Z')")
+    parser.add_argument("--variants", type=int, default=0, help="Generate N thumbnail variants for A/B testing (0=off)")
+    parser.add_argument("--analytics", action="store_true", help="Show channel analytics instead of processing video")
+    parser.add_argument("--analytics-video", default="", help="Show analytics for a specific video ID")
+    parser.add_argument("--analytics-days", type=int, default=28, help="Analytics lookback period in days")
     args = parser.parse_args()
+
+    if args.analytics or args.analytics_video:
+        from src.analytics import get_analytics
+        import yaml
+        config = yaml.safe_load(open(args.config))
+        channel_id = config.get("youtube", {}).get("channel_id", "")
+        report = get_analytics(channel_id, args.analytics_video, args.analytics_days)
+        print(report)
+        return 0
 
     if args.batch:
         inbox = Path("inbox")
@@ -191,6 +213,7 @@ def main():
                 no_filter=args.no_filter,
                 music_dir="" if args.no_music else args.music_dir,
                 publish_at=args.publish_at,
+                variants=args.variants,
             )
     elif args.input:
         run_pipeline(
@@ -206,6 +229,7 @@ def main():
             no_filter=args.no_filter,
             music_dir="" if args.no_music else args.music_dir,
             publish_at=args.publish_at,
+            variants=args.variants,
         )
     else:
         parser.print_help()
