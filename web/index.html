@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shorts Pipeline — CoachPrincetonBasketball</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --primary: #2563EB;
+            --primary-light: #3B82F6;
+            --cta: #F97316;
+            --bg: #F8FAFC;
+            --text: #1E293B;
+            --text-light: #64748B;
+            --surface: #FFFFFF;
+            --border: #E2E8F0;
+            --success: #10B981;
+            --error: #EF4444;
+            --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+            --shadow-lg: 0 4px 12px rgba(0,0,0,0.1);
+            --radius: 12px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: var(--shadow);
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .header .badge {
+            background: var(--primary);
+            color: white;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 32px auto;
+            padding: 0 24px;
+        }
+
+        /* Step Indicator */
+        .steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 32px;
+            position: relative;
+        }
+
+        .steps::before {
+            content: '';
+            position: absolute;
+            top: 16px;
+            left: 40px;
+            right: 40px;
+            height: 2px;
+            background: var(--border);
+        }
+
+        .step-dot {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--border);
+            color: var(--text-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            position: relative;
+            z-index: 1;
+            transition: all 0.3s ease;
+        }
+
+        .step-dot.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2);
+        }
+
+        .step-dot.done {
+            background: var(--success);
+            color: white;
+        }
+
+        .step-label {
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-light);
+            margin-top: 8px;
+        }
+
+        .step-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 32px;
+            margin-bottom: 24px;
+        }
+
+        .card h2 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .card .subtitle {
+            color: var(--text-light);
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+
+        /* Forms */
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--text);
+        }
+
+        input[type="text"], select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 15px;
+            color: var(--text);
+            background: var(--bg);
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .helper {
+            font-size: 12px;
+            color: var(--text-light);
+            margin-top: 4px;
+        }
+
+        /* Checkbox */
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary);
+        }
+
+        .checkbox-group label {
+            margin: 0;
+            font-weight: 400;
+        }
+
+        /* Upload */
+        .upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius);
+            padding: 48px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--bg);
+        }
+
+        .upload-zone:hover {
+            border-color: var(--primary);
+            background: rgba(37, 99, 235, 0.03);
+        }
+
+        .upload-zone.has-file {
+            border-color: var(--success);
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .upload-zone .icon {
+            font-size: 40px;
+            margin-bottom: 12px;
+        }
+
+        .upload-zone p {
+            color: var(--text-light);
+            font-size: 14px;
+        }
+
+        .upload-zone .filename {
+            color: var(--success);
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1D4ED8;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .btn-cta {
+            background: var(--cta);
+            color: white;
+            font-size: 16px;
+            padding: 14px 32px;
+        }
+
+        .btn-cta:hover {
+            background: #EA580C;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .btn-secondary {
+            background: var(--bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+
+        /* Progress */
+        .progress-container {
+            margin: 24px 0;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--primary-light));
+            border-radius: 4px;
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+
+        .progress-label {
+            font-size: 14px;
+            color: var(--text-light);
+            margin-top: 8px;
+        }
+
+        /* Results */
+        .result-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 24px;
+        }
+
+        .result-card {
+            background: var(--bg);
+            border-radius: 8px;
+            padding: 16px;
+            border: 1px solid var(--border);
+        }
+
+        .result-card h3 {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-light);
+            margin-bottom: 8px;
+        }
+
+        .result-card img {
+            width: 100%;
+            border-radius: 6px;
+            box-shadow: var(--shadow);
+        }
+
+        .result-card pre {
+            font-size: 12px;
+            background: var(--surface);
+            padding: 12px;
+            border-radius: 6px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+        }
+
+        .result-card .copy-btn {
+            font-size: 12px;
+            padding: 4px 10px;
+            margin-top: 8px;
+            border-radius: 4px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        .result-card .copy-btn:hover {
+            background: #1D4ED8;
+        }
+
+        /* Section visibility */
+        .section { display: none; }
+        .section.active { display: block; }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .form-row { grid-template-columns: 1fr; }
+            .result-grid { grid-template-columns: 1fr; }
+            .container { padding: 0 16px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Shorts Pipeline</h1>
+        <span class="badge">v1.0</span>
+    </div>
+
+    <div class="container">
+        <!-- Step Indicator -->
+        <div class="steps">
+            <div class="step-item">
+                <div class="step-dot active" id="dot-1">1</div>
+                <div class="step-label">Upload</div>
+            </div>
+            <div class="step-item">
+                <div class="step-dot" id="dot-2">2</div>
+                <div class="step-label">Details</div>
+            </div>
+            <div class="step-item">
+                <div class="step-dot" id="dot-3">3</div>
+                <div class="step-label">Options</div>
+            </div>
+            <div class="step-item">
+                <div class="step-dot" id="dot-4">4</div>
+                <div class="step-label">Process</div>
+            </div>
+            <div class="step-item">
+                <div class="step-dot" id="dot-5">5</div>
+                <div class="step-label">Results</div>
+            </div>
+        </div>
+
+        <!-- Step 1: Upload -->
+        <div class="section active" id="step-1">
+            <div class="card">
+                <h2>Upload Video</h2>
+                <p class="subtitle">Drop your video file to get started</p>
+
+                <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+                    <div class="icon">&#127909;</div>
+                    <p>Click to select or drag and drop</p>
+                    <p style="font-size: 12px; margin-top: 4px;">MP4, MOV, AVI, MKV, WebM</p>
+                </div>
+                <input type="file" id="file-input" accept=".mp4,.mov,.avi,.mkv,.webm" style="display: none">
+
+                <div class="btn-row">
+                    <button class="btn btn-primary" id="btn-next-1" disabled onclick="goStep(2)">Next</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Details -->
+        <div class="section" id="step-2">
+            <div class="card">
+                <h2>Video Details</h2>
+                <p class="subtitle">Title and thumbnail text</p>
+
+                <div class="form-group">
+                    <label for="title">Video Title</label>
+                    <input type="text" id="title" placeholder="e.g. Chin Dribble Weave Entry">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="hook">Thumbnail Hook Text</label>
+                        <input type="text" id="hook" placeholder="e.g. BREAKS EVERY ZONE">
+                        <p class="helper">3-5 words max. Leave blank for auto-detect.</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="accent">Accent Word (Yellow)</label>
+                        <input type="text" id="accent" placeholder="e.g. ZONE">
+                        <p class="helper">The word highlighted in yellow</p>
+                    </div>
+                </div>
+
+                <div class="btn-row">
+                    <button class="btn btn-secondary" onclick="goStep(1)">Back</button>
+                    <button class="btn btn-primary" onclick="goStep(3)">Next</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Options -->
+        <div class="section" id="step-3">
+            <div class="card">
+                <h2>Processing Options</h2>
+                <p class="subtitle">Customize how your Short is generated</p>
+
+                <div class="form-group">
+                    <label for="crop">Vertical Crop Mode</label>
+                    <select id="crop">
+                        <option value="center">Center Crop (face/action focused)</option>
+                        <option value="blur">Scale with Blurred Background (diagrams)</option>
+                        <option value="none">No Crop (already vertical)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="source-image">Custom Thumbnail Photo (optional)</label>
+                    <input type="text" id="source-image" placeholder="e.g. /Users/fcp/Documents/IMG_9468.jpeg">
+                    <p class="helper">Path to your own photo. Leave blank to extract from video.</p>
+                </div>
+
+                <div class="checkbox-group">
+                    <input type="checkbox" id="no-filter" checked>
+                    <label for="no-filter">Skip cartoon filter (use raw photo for thumbnail)</label>
+                </div>
+
+                <div class="checkbox-group">
+                    <input type="checkbox" id="no-music">
+                    <label for="no-music">Skip background music</label>
+                </div>
+
+                <div class="btn-row">
+                    <button class="btn btn-secondary" onclick="goStep(2)">Back</button>
+                    <button class="btn btn-cta" onclick="startProcessing()">Process Video</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: Processing -->
+        <div class="section" id="step-4">
+            <div class="card">
+                <h2>Processing...</h2>
+                <p class="subtitle" id="process-stage">Starting pipeline...</p>
+
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                    <p class="progress-label" id="progress-label">0%</p>
+                </div>
+
+                <p id="process-error" style="color: var(--error); display: none; margin-top: 16px;"></p>
+            </div>
+        </div>
+
+        <!-- Step 5: Results -->
+        <div class="section" id="step-5">
+            <div class="card">
+                <h2>Your Short is Ready!</h2>
+                <p class="subtitle">Preview and download your outputs</p>
+
+                <div class="result-grid">
+                    <div class="result-card">
+                        <h3>Thumbnail</h3>
+                        <img id="result-thumbnail" src="" alt="Thumbnail">
+                    </div>
+                    <div class="result-card">
+                        <h3>YouTube Description</h3>
+                        <pre id="result-description"></pre>
+                        <button class="copy-btn" onclick="copyText('result-description')">Copy</button>
+                    </div>
+                    <div class="result-card">
+                        <h3>Instagram Caption</h3>
+                        <pre id="result-instagram"></pre>
+                        <button class="copy-btn" onclick="copyText('result-instagram')">Copy</button>
+                    </div>
+                    <div class="result-card">
+                        <h3>Blog Embed</h3>
+                        <pre id="result-blog"></pre>
+                        <button class="copy-btn" onclick="copyText('result-blog')">Copy</button>
+                    </div>
+                    <div class="result-card" style="grid-column: 1 / -1;">
+                        <h3>Transcript</h3>
+                        <pre id="result-transcript"></pre>
+                        <button class="copy-btn" onclick="copyText('result-transcript')">Copy</button>
+                    </div>
+                </div>
+
+                <div class="btn-row">
+                    <button class="btn btn-secondary" onclick="openOutputFolder()">Open Output Folder</button>
+                    <button class="btn btn-primary" onclick="goStep(1)">Process Another Video</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentStep = 1;
+        let selectedFile = null;
+        let pollInterval = null;
+
+        // File upload handling
+        const fileInput = document.getElementById('file-input');
+        const uploadZone = document.getElementById('upload-zone');
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                selectedFile = e.target.files[0];
+                uploadZone.classList.add('has-file');
+                uploadZone.innerHTML = `<div class="icon">&#9989;</div><p class="filename">${selectedFile.name}</p><p>${(selectedFile.size / 1024 / 1024).toFixed(1)} MB</p>`;
+                document.getElementById('btn-next-1').disabled = false;
+            }
+        });
+
+        // Drag and drop
+        uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.style.borderColor = 'var(--primary)'; });
+        uploadZone.addEventListener('dragleave', () => { uploadZone.style.borderColor = ''; });
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.style.borderColor = '';
+            if (e.dataTransfer.files.length > 0) {
+                selectedFile = e.dataTransfer.files[0];
+                fileInput.files = e.dataTransfer.files;
+                uploadZone.classList.add('has-file');
+                uploadZone.innerHTML = `<div class="icon">&#9989;</div><p class="filename">${selectedFile.name}</p><p>${(selectedFile.size / 1024 / 1024).toFixed(1)} MB</p>`;
+                document.getElementById('btn-next-1').disabled = false;
+            }
+        });
+
+        function goStep(step) {
+            document.getElementById(`step-${currentStep}`).classList.remove('active');
+            document.getElementById(`step-${step}`).classList.add('active');
+
+            for (let i = 1; i <= 5; i++) {
+                const dot = document.getElementById(`dot-${i}`);
+                dot.classList.remove('active', 'done');
+                if (i < step) dot.classList.add('done');
+                if (i === step) dot.classList.add('active');
+            }
+
+            currentStep = step;
+        }
+
+        function startProcessing() {
+            goStep(4);
+
+            const formData = new FormData();
+            formData.append('video', selectedFile);
+            formData.append('title', document.getElementById('title').value || 'Untitled');
+            formData.append('hook', document.getElementById('hook').value);
+            formData.append('accent', document.getElementById('accent').value);
+            formData.append('crop', document.getElementById('crop').value);
+            formData.append('source_image', document.getElementById('source-image').value);
+            formData.append('no_filter', document.getElementById('no-filter').checked);
+            formData.append('no_music', document.getElementById('no-music').checked);
+
+            fetch('/api/process', { method: 'POST', body: formData })
+                .then(r => r.json())
+                .then(() => {
+                    pollInterval = setInterval(pollStatus, 1000);
+                })
+                .catch(err => {
+                    document.getElementById('process-error').textContent = err.message;
+                    document.getElementById('process-error').style.display = 'block';
+                });
+        }
+
+        function pollStatus() {
+            fetch('/api/status')
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('progress-fill').style.width = data.progress + '%';
+                    document.getElementById('progress-label').textContent = data.progress + '%';
+                    document.getElementById('process-stage').textContent = data.stage || 'Starting...';
+
+                    if (data.error) {
+                        clearInterval(pollInterval);
+                        document.getElementById('process-error').textContent = data.error;
+                        document.getElementById('process-error').style.display = 'block';
+                    }
+
+                    if (!data.running && data.result) {
+                        clearInterval(pollInterval);
+                        showResults(data.result);
+                    }
+                });
+        }
+
+        function showResults(result) {
+            goStep(5);
+
+            if (result.thumbnail) {
+                document.getElementById('result-thumbnail').src = `/output/${result.output_dir.split('/').pop()}/${result.thumbnail}`;
+            }
+            document.getElementById('result-description').textContent = result.description || '';
+            document.getElementById('result-instagram').textContent = result.instagram || '';
+            document.getElementById('result-blog').textContent = result.blog_embed || '';
+            document.getElementById('result-transcript').textContent = result.transcript || '';
+        }
+
+        function copyText(elementId) {
+            const text = document.getElementById(elementId).textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.getElementById(elementId).nextElementSibling;
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 2000);
+            });
+        }
+
+        function openOutputFolder() {
+            // This works on Mac via a simple alert with the path
+            alert('Output folder: ~/Shorts/output/\n\nOpen Finder and navigate there.');
+        }
+    </script>
+</body>
+</html>
