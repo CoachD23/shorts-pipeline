@@ -178,6 +178,7 @@ def main():
     parser.add_argument("--analytics", action="store_true", help="Show channel analytics instead of processing video")
     parser.add_argument("--analytics-video", default="", help="Show analytics for a specific video ID")
     parser.add_argument("--analytics-days", type=int, default=28, help="Analytics lookback period in days")
+    parser.add_argument("--extract-clips", type=int, default=0, help="Extract N best clips from long video (0=off)")
     args = parser.parse_args()
 
     if args.analytics or args.analytics_video:
@@ -187,6 +188,22 @@ def main():
         channel_id = config.get("youtube", {}).get("channel_id", "")
         report = get_analytics(channel_id, args.analytics_video, args.analytics_days)
         print(report)
+        return 0
+
+    if args.extract_clips > 0 and args.input:
+        from src.transcribe import transcribe_video
+        from src.clips import extract_clips_from_video
+        import yaml
+        config = yaml.safe_load(open(args.config))
+        print(f"Transcribing {args.input}...")
+        transcript = transcribe_video(args.input)
+        print(f"Finding top {args.extract_clips} clips...")
+        clips = extract_clips_from_video(args.input, transcript, args.output, args.extract_clips)
+        for i, clip in enumerate(clips, 1):
+            print(f"  Clip {i}: {clip['start']:.1f}s - {clip['end']:.1f}s (score: {clip['score']:.2f})")
+            print(f"    \"{clip['text']}\"")
+            print(f"    → {clip['path']}")
+        print(f"\n{len(clips)} clips extracted to {args.output}/")
         return 0
 
     if args.batch:
