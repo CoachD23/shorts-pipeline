@@ -8,6 +8,11 @@ from pathlib import Path
 
 from flask import Flask, render_template, request, jsonify, send_from_directory
 
+# Ensure our bundled ffmpeg/ffprobe (with libass) are on PATH first, then Homebrew
+project_bin = str(Path(__file__).parent / "bin")
+homebrew_bin = "/opt/homebrew/bin"
+os.environ["PATH"] = project_bin + ":" + homebrew_bin + ":" + os.environ.get("PATH", "")
+
 app = Flask(__name__, template_folder="web", static_folder="web/static")
 
 # Pipeline status tracking
@@ -48,7 +53,7 @@ def run_pipeline_async(video_path, title, hook, accent, crop, source_image, no_f
         # Stage 1: Transcribe
         pipeline_status["stage"] = "Transcribing with Whisper..."
         pipeline_status["progress"] = 10
-        transcript = transcribe_video(video_path, model_size="medium")
+        transcript = transcribe_video(video_path, model_size="base")
 
         # Auto-detect hook if not provided
         if not hook:
@@ -192,5 +197,5 @@ def serve_output(filepath):
 
 if __name__ == "__main__":
     print("\n🏀 Shorts Pipeline UI")
-    print("   Open: http://localhost:5000\n")
-    app.run(debug=True, port=5000)
+    print("   Open: http://localhost:8080\n")
+    app.run(debug=False, port=8080, host="0.0.0.0")
