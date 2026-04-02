@@ -575,6 +575,11 @@
 
                 <div class="result-grid">
                     <div class="result-card">
+                        <h3>Pinned Comment</h3>
+                        <pre id="result-pinned"></pre>
+                        <button class="copy-btn" onclick="copyText('result-pinned')">Copy</button>
+                    </div>
+                    <div class="result-card">
                         <h3>YouTube Description</h3>
                         <pre id="result-description"></pre>
                         <button class="copy-btn" onclick="copyText('result-description')">Copy</button>
@@ -799,6 +804,7 @@
             }
 
             // Text outputs
+            document.getElementById('result-pinned').textContent = result.pinned_comment || '';
             document.getElementById('result-description').textContent = result.description || '';
             document.getElementById('result-instagram').textContent = result.instagram || '';
             document.getElementById('result-blog').textContent = result.blog_embed || '';

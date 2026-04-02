@@ -37,7 +37,7 @@ def run_pipeline_async(video_path, title, hook, accent, crop, source_image, no_f
         from src.transcribe import transcribe_video, save_transcript
         from src.captions import save_captions
         from src.thumbnail import generate_thumbnail
-        from src.description import save_description, save_instagram_caption, save_blog_embed
+        from src.description import save_description, save_instagram_caption, save_blog_embed, save_pinned_comment
         from src.video import process_video, extract_frame
         from src.hooks import detect_hook
         from src.music import find_music_file
@@ -154,6 +154,7 @@ def run_pipeline_async(video_path, title, hook, accent, crop, source_image, no_f
         desc_path = save_description(transcript, title, config, output_dir)
         ig_path = save_instagram_caption(transcript, title, config, output_dir)
         blog_path = save_blog_embed(transcript, title, config, output_dir)
+        pinned_path = save_pinned_comment(transcript, title, output_dir)
 
         # Stage 6: Video processing
         pipeline_status["stage"] = "Processing video with FFmpeg..."
@@ -184,6 +185,7 @@ def run_pipeline_async(video_path, title, hook, accent, crop, source_image, no_f
             "description": desc_path.read_text() if desc_path.exists() else "",
             "instagram": ig_path.read_text() if ig_path.exists() else "",
             "blog_embed": blog_path.read_text() if blog_path.exists() else "",
+            "pinned_comment": pinned_path.read_text() if pinned_path.exists() else "",
             "transcript": md_path.read_text() if md_path.exists() else "",
             "videos": {k: os.path.basename(v) for k, v in video_outputs.items()},
             "duration": duration,

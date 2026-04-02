@@ -1,5 +1,5 @@
 """Tests for YouTube description generator."""
-from src.description import generate_description, detect_timestamps, generate_instagram_caption, generate_blog_embed
+from src.description import generate_description, detect_timestamps, generate_instagram_caption, generate_blog_embed, generate_pinned_comment
 
 
 def test_detect_timestamps_finds_pauses():
@@ -59,3 +59,11 @@ def test_generate_blog_embed_no_video_id():
     config = {"blog": {"base_url": "https://test.com/blog"}}
     html = generate_blog_embed(transcript, "Test", config, video_id="")
     assert "VIDEO_ID" in html
+
+def test_generate_pinned_comment():
+    transcript = {"text": "This play breaks every zone defense.", "segments": []}
+    result = generate_pinned_comment(transcript, "Test")
+    assert "PINNED COMMENT OPTIONS" in result
+    assert "1." in result
+    assert "2." in result
+    assert "3." in result

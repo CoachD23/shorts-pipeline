@@ -158,3 +158,45 @@ def save_blog_embed(transcript: dict, title: str, config: dict, output_dir: Path
     html_path = output_dir / "blog_embed.html"
     html_path.write_text(html)
     return html_path
+
+
+def generate_pinned_comment(transcript: dict, title: str) -> str:
+    """Generate a pinned comment for YouTube engagement.
+
+    Top creators always pin the first comment with a question or CTA.
+    This drives engagement which the algorithm rewards.
+    """
+    full_text = transcript.get("text", "").strip()
+    sentences = re.split(r"(?<=[.!?])\s+", full_text)
+
+    # Generate 3 options — creator picks the best one
+    options = []
+
+    # Option 1: Question based on content
+    if sentences and len(sentences[0]) > 10:
+        topic = sentences[0].rstrip(".!?")
+        options.append(f"What's your experience with this? Drop a comment below!")
+    else:
+        options.append(f"What do you think about this approach? Let me know below!")
+
+    # Option 2: CTA to save/share
+    options.append(f"Save this for your next practice! Tag a coach who needs to see this.")
+
+    # Option 3: Challenge/engagement hook
+    options.append(f"Can you run this in your next game? Comment your results!")
+
+    return "\n\n".join([
+        "PINNED COMMENT OPTIONS (pick one):",
+        f"1. {options[0]}",
+        f"2. {options[1]}",
+        f"3. {options[2]}",
+    ])
+
+
+def save_pinned_comment(transcript: dict, title: str, output_dir: Path) -> Path:
+    """Save pinned comment options to file."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    comment = generate_pinned_comment(transcript, title)
+    path = output_dir / "pinned_comment.txt"
+    path.write_text(comment)
+    return path
