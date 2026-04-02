@@ -133,21 +133,44 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/api/reset", methods=["POST"])
+def reset():
+    """Clear error state so a new job can start."""
+    global pipeline_status
+    if not pipeline_status["running"]:
+        pipeline_status = {"running": False, "stage": "", "progress": 0, "error": "", "result": None}
+    return jsonify({"status": "reset"})
+
+
 @app.route("/api/process", methods=["POST"])
 def process():
+    global pipeline_status
     if pipeline_status["running"]:
         return jsonify({"error": "Pipeline already running"}), 409
 
-    # Handle file upload
-    video = request.files.get("video")
-    if not video:
-        return jsonify({"error": "No video file provided"}), 400
+    # Clear any previous error state
+    pipeline_status = {"running": False, "stage": "", "progress": 0, "error": "", "result": None}
 
-    # Save uploaded file
-    inbox = Path("inbox")
-    inbox.mkdir(exist_ok=True)
-    video_path = str(inbox / video.filename)
-    video.save(video_path)
+    # Handle file upload or inbox file
+    video_path = request.form.get("inbox_file", "")
+    if video_path:
+        video_path = str(Path("inbox") / video_path)
+    else:
+        video = request.files.get("video")
+        if not video:
+            return jsonify({"error": "No video file provided"}), 400
+
+        # Validate file extension
+        video_exts = {".mp4", ".mov", ".avi", ".mkv", ".webm"}
+        ext = Path(video.filename).suffix.lower()
+        if ext not in video_exts:
+            return jsonify({"error": f"Invalid file type '{ext}'. Upload a video file ({', '.join(video_exts)})"}), 400
+
+        # Save uploaded file
+        inbox = Path("inbox")
+        inbox.mkdir(exist_ok=True)
+        video_path = str(inbox / video.filename)
+        video.save(video_path)
 
     title = request.form.get("title", "Untitled")
     hook = request.form.get("hook", "")

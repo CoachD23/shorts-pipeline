@@ -428,14 +428,23 @@
         <div class="section active" id="step-1">
             <div class="card">
                 <h2>Upload Video</h2>
-                <p class="subtitle">Drop your video file to get started</p>
+                <p class="subtitle">Drop your video file or pick from the inbox folder</p>
 
                 <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
                     <div class="icon">&#127909;</div>
                     <p>Click to select or drag and drop</p>
-                    <p style="font-size: 12px; margin-top: 4px;">MP4, MOV, AVI, MKV, WebM</p>
+                    <p style="font-size: 12px; margin-top: 4px;">MP4, MOV, AVI, MKV, WebM (not JPEG/PNG)</p>
                 </div>
                 <input type="file" id="file-input" accept=".mp4,.mov,.avi,.mkv,.webm" style="display: none">
+
+                <div style="text-align: center; margin: 16px 0; color: var(--text-light); font-size: 14px;">
+                    — or pick from inbox folder —
+                </div>
+
+                <div id="inbox-list" style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; max-height: 200px; overflow-y: auto;">
+                    <p style="color: var(--text-light); font-size: 13px;">Loading inbox...</p>
+                </div>
+                <p class="helper">Copy video files to ~/Shorts/inbox/ and they appear here</p>
 
                 <div class="btn-row">
                     <button class="btn btn-primary" id="btn-next-1" disabled onclick="goStep(2)">Next</button>
@@ -573,7 +582,38 @@
     <script>
         let currentStep = 1;
         let selectedFile = null;
+        let selectedInboxFile = null;
         let pollInterval = null;
+
+        // Load inbox files on page load
+        function loadInbox() {
+            fetch('/api/inbox').then(r => r.json()).then(data => {
+                const list = document.getElementById('inbox-list');
+                if (!data.files || data.files.length === 0) {
+                    list.innerHTML = '<p style="color: var(--text-light); font-size: 13px;">No videos in inbox. Copy .mp4/.mov files to ~/Shorts/inbox/</p>';
+                    return;
+                }
+                list.innerHTML = data.files.map(f =>
+                    `<div class="inbox-item" onclick="selectInboxFile('${f}')" style="padding: 8px 12px; cursor: pointer; border-radius: 6px; margin-bottom: 4px; font-size: 14px; transition: background 0.15s;"
+                         onmouseover="this.style.background='var(--border)'" onmouseout="this.style.background=''"
+                         id="inbox-${f.replace(/[^a-zA-Z0-9]/g, '_')}">
+                        &#127909; ${f}
+                    </div>`
+                ).join('');
+            });
+        }
+        loadInbox();
+
+        function selectInboxFile(filename) {
+            selectedInboxFile = filename;
+            selectedFile = null;
+            document.querySelectorAll('.inbox-item').forEach(el => el.style.background = '');
+            const el = document.getElementById('inbox-' + filename.replace(/[^a-zA-Z0-9]/g, '_'));
+            if (el) el.style.background = 'rgba(16, 185, 129, 0.15)';
+            uploadZone.classList.remove('has-file');
+            uploadZone.innerHTML = '<div class="icon">&#127909;</div><p>Click to select or drag and drop</p><p style="font-size: 12px; margin-top: 4px;">MP4, MOV, AVI, MKV, WebM</p>';
+            document.getElementById('btn-next-1').disabled = false;
+        }
 
         // File upload handling
         const fileInput = document.getElementById('file-input');
@@ -582,6 +622,8 @@
         fileInput.addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
                 selectedFile = e.target.files[0];
+                selectedInboxFile = null;  // Clear inbox selection
+                document.querySelectorAll('.inbox-item').forEach(el => el.style.background = '');
                 uploadZone.classList.add('has-file');
                 uploadZone.innerHTML = `<div class="icon">&#9989;</div><p class="filename">${selectedFile.name}</p><p>${(selectedFile.size / 1024 / 1024).toFixed(1)} MB</p>`;
                 document.getElementById('btn-next-1').disabled = false;
@@ -619,26 +661,42 @@
 
         function startProcessing() {
             goStep(4);
+            document.getElementById('process-error').style.display = 'none';
 
-            const formData = new FormData();
-            formData.append('video', selectedFile);
-            formData.append('title', document.getElementById('title').value || 'Untitled');
-            formData.append('hook', document.getElementById('hook').value);
-            formData.append('accent', document.getElementById('accent').value);
-            formData.append('crop', document.getElementById('crop').value);
-            formData.append('source_image', document.getElementById('source-image').value);
-            formData.append('no_filter', document.getElementById('no-filter').checked);
-            formData.append('no_music', document.getElementById('no-music').checked);
+            // Reset server state first
+            fetch('/api/reset', { method: 'POST' }).then(() => {
+                const formData = new FormData();
 
-            fetch('/api/process', { method: 'POST', body: formData })
-                .then(r => r.json())
-                .then(() => {
-                    pollInterval = setInterval(pollStatus, 1000);
-                })
-                .catch(err => {
-                    document.getElementById('process-error').textContent = err.message;
-                    document.getElementById('process-error').style.display = 'block';
-                });
+                // Use inbox file or uploaded file
+                if (selectedInboxFile) {
+                    formData.append('inbox_file', selectedInboxFile);
+                } else if (selectedFile) {
+                    formData.append('video', selectedFile);
+                }
+
+                formData.append('title', document.getElementById('title').value || 'Untitled');
+                formData.append('hook', document.getElementById('hook').value);
+                formData.append('accent', document.getElementById('accent').value);
+                formData.append('crop', document.getElementById('crop').value);
+                formData.append('source_image', document.getElementById('source-image').value);
+                formData.append('no_filter', document.getElementById('no-filter').checked);
+                formData.append('no_music', document.getElementById('no-music').checked);
+
+                fetch('/api/process', { method: 'POST', body: formData })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.error) {
+                            document.getElementById('process-error').textContent = data.error;
+                            document.getElementById('process-error').style.display = 'block';
+                            return;
+                        }
+                        pollInterval = setInterval(pollStatus, 1000);
+                    })
+                    .catch(err => {
+                        document.getElementById('process-error').textContent = err.message;
+                        document.getElementById('process-error').style.display = 'block';
+                    });
+            });
         }
 
         function pollStatus() {
