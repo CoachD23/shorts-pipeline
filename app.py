@@ -176,6 +176,11 @@ def run_pipeline_async(video_path, title, hook, accent, crop, source_image, no_f
             output_dir=str(output_dir),
         )
 
+        # Loop detection
+        pipeline_status["stage"] = "Analyzing loop potential..."
+        pipeline_status["progress"] = 92
+        loop_info = detect_loop(video_path, str(output_dir))
+
         pipeline_status["stage"] = "Complete!"
         pipeline_status["progress"] = 100
         # Build length variants info for UI
@@ -201,6 +206,7 @@ def run_pipeline_async(video_path, title, hook, accent, crop, source_image, no_f
             "duration": duration,
             "length_variants": variants_info,
             "platform_exports": {k: os.path.basename(v) if not v.startswith("ERROR") else v for k, v in platform_exports.items()},
+            "loop_info": loop_info,
         }
 
     except Exception as e:
