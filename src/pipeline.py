@@ -164,6 +164,7 @@ def main():
     parser.add_argument("--no-filter", action="store_true", help="Skip cartoon filter on thumbnail (use raw photo)")
     parser.add_argument("--no-music", action="store_true", help="Skip background music")
     parser.add_argument("--music-dir", default="music", help="Directory containing music files")
+    parser.add_argument("--publish-at", default="", help="Schedule publish time (ISO 8601, e.g. '2026-04-02T09:00:00Z')")
     args = parser.parse_args()
 
     if args.batch:
@@ -189,6 +190,7 @@ def main():
                 source_image=args.source_image,
                 no_filter=args.no_filter,
                 music_dir="" if args.no_music else args.music_dir,
+                publish_at=args.publish_at,
             )
     elif args.input:
         run_pipeline(
@@ -203,6 +205,7 @@ def main():
             source_image=args.source_image,
             no_filter=args.no_filter,
             music_dir="" if args.no_music else args.music_dir,
+            publish_at=args.publish_at,
         )
     else:
         parser.print_help()

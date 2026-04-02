@@ -19,8 +19,27 @@ def build_video_metadata(
     description: str,
     tags: list[str],
     privacy: str | None = None,
+    publish_at: str | None = None,
 ) -> dict:
-    """Build YouTube API video resource metadata."""
+    """Build YouTube API video resource metadata.
+
+    Args:
+        title: Video title.
+        description: Video description.
+        tags: List of tags.
+        privacy: 'private', 'unlisted', or 'public'. Defaults to 'private'.
+        publish_at: ISO 8601 datetime for scheduled publish (e.g. '2026-04-02T09:00:00Z').
+                    Only works with privacy='private'. YouTube auto-publishes at this time.
+    """
+    status = {
+        "privacyStatus": privacy or "private",
+        "selfDeclaredMadeForKids": False,
+    }
+
+    if publish_at:
+        status["privacyStatus"] = "private"
+        status["publishAt"] = publish_at
+
     return {
         "snippet": {
             "title": title,
@@ -28,10 +47,7 @@ def build_video_metadata(
             "tags": tags,
             "categoryId": "17",  # Sports
         },
-        "status": {
-            "privacyStatus": privacy or "private",
-            "selfDeclaredMadeForKids": False,
-        },
+        "status": status,
     }
 
 
@@ -62,10 +78,11 @@ def upload_video(
     thumbnail_path: str | None = None,
     credentials_path: str = "credentials.json",
     token_path: str = "token.json",
+    publish_at: str | None = None,
 ) -> str:
     """Upload a video to YouTube. Returns video ID."""
     youtube = get_authenticated_service(credentials_path, token_path)
-    metadata = build_video_metadata(title, description, tags, privacy)
+    metadata = build_video_metadata(title, description, tags, privacy, publish_at)
     media = MediaFileUpload(
         video_path, mimetype="video/mp4", resumable=True,
         chunksize=10 * 1024 * 1024,
