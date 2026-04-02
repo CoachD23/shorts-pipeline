@@ -623,6 +623,13 @@
         }
         loadInbox();
 
+        // Auto-show results if a completed run exists
+        fetch('/api/status').then(r => r.json()).then(data => {
+            if (!data.running && data.result && data.progress === 100) {
+                showResults(data.result);
+            }
+        });
+
         function selectInboxFile(filename) {
             selectedInboxFile = filename;
             selectedFile = null;
