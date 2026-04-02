@@ -244,6 +244,66 @@ def _save_under_2mb(img: Image.Image, output_path: str) -> str:
     return output_path
 
 
+def generate_thumbnail_variants(
+    source_image_path: str,
+    hook_text: str,
+    accent_word: str,
+    config: dict,
+    output_dir: str,
+    variant_count: int = 3,
+) -> list[str]:
+    """Generate multiple thumbnail variants for A/B testing.
+
+    Variants differ by:
+    1. Original layout (text on right)
+    2. Text on left
+    3. Text centered with bottom gradient
+
+    Returns list of paths to generated thumbnails.
+    """
+    brand = config["brand"]
+    thumb_config = config["thumbnail"]
+    paths = []
+
+    positions = ["right", "left", "center"]
+    gradient_sides = ["right", "left", "bottom"]
+
+    for i in range(min(variant_count, len(positions))):
+        img = Image.open(source_image_path).convert("RGB")
+        img = img.resize((CANVAS_WIDTH, CANVAS_HEIGHT), Image.LANCZOS)
+
+        strength = thumb_config.get("cartoon_strength", "medium")
+        img = apply_cartoon_filter(img, strength=strength)
+        img = apply_vignette(img, intensity=0.5)
+        img = apply_gradient_overlay(img, side=gradient_sides[i], opacity=0.75, coverage=0.55)
+
+        font_path = None
+        candidate = Path.home() / "Library/Fonts/Montserrat-ExtraBold.ttf"
+        if candidate.exists():
+            font_path = str(candidate)
+
+        img = add_text_overlay(
+            image=img,
+            hook_text=hook_text,
+            accent_word=accent_word,
+            font_path=font_path,
+            primary_color=brand["primary_color"],
+            accent_color=brand["accent_color"],
+            stroke_color=brand["stroke_color"],
+            stroke_width=brand.get("stroke_width", 8),
+            position=positions[i],
+        )
+
+        img = img.resize((OUTPUT_WIDTH, OUTPUT_HEIGHT), Image.LANCZOS)
+
+        variant_path = str(Path(output_dir) / f"thumbnail_v{i+1}.jpg")
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
+        _save_under_2mb(img, variant_path)
+        paths.append(variant_path)
+
+    return paths
+
+
 def generate_thumbnail(
     source_image_path: str,
     hook_text: str,

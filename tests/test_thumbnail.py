@@ -1,7 +1,7 @@
 """Tests for thumbnail generation."""
 from pathlib import Path
 from PIL import Image
-from src.thumbnail import apply_cartoon_filter, add_text_overlay, generate_thumbnail
+from src.thumbnail import apply_cartoon_filter, add_text_overlay, generate_thumbnail, generate_thumbnail_variants
 
 
 def test_apply_cartoon_filter_returns_image():
@@ -39,3 +39,22 @@ def test_generate_thumbnail_creates_file(tmp_path):
     assert Path(out_path).suffix == ".jpg"
     thumb = Image.open(out_path)
     assert thumb.size == (1280, 720)
+
+
+def test_generate_thumbnail_variants(tmp_path):
+    img = Image.new("RGB", (1280, 720), color=(50, 100, 50))
+    source_path = tmp_path / "frame.png"
+    img.save(source_path)
+    config = {
+        "brand": {"primary_color": "#FFFFFF", "accent_color": "#FFFF00",
+                  "font": "Montserrat-ExtraBold", "stroke_color": "#000000", "stroke_width": 4},
+        "thumbnail": {"width": 1280, "height": 720, "cartoon_strength": "none", "text_position": "right"},
+    }
+    from src.thumbnail import generate_thumbnail_variants
+    paths = generate_thumbnail_variants(
+        source_image_path=str(source_path), hook_text="TEST HOOK",
+        accent_word="HOOK", config=config, output_dir=str(tmp_path),
+    )
+    assert len(paths) == 3
+    for p in paths:
+        assert Path(p).exists()
