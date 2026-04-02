@@ -13,6 +13,7 @@ from src.thumbnail import generate_thumbnail
 from src.description import generate_description, save_description
 from src.video import process_video, extract_frame
 from src.upload import upload_video
+from src.music import find_music_file, build_music_ffmpeg_args
 
 
 def load_config(config_path: str) -> dict:
@@ -32,6 +33,7 @@ def run_pipeline(
     output_base: str = "output",
     source_image: str = "",       # NEW
     no_filter: bool = False,      # NEW
+    music_dir: str = "music",
 ) -> dict:
     """Run the full pipeline on a single video."""
     config = load_config(config_path)
@@ -45,6 +47,11 @@ def run_pipeline(
 
     print(f"[2/6] Saving transcript...")
     json_path, md_path = save_transcript(transcript, output_dir, title)
+
+    # Find background music (optional)
+    music_path = find_music_file(music_dir)
+    if music_path:
+        print(f"[2.5/6] Found background music: {Path(music_path).name}")
 
     print(f"[3/6] Generating kinetic captions...")
     ass_path = save_captions(transcript, config, output_dir)
@@ -87,6 +94,7 @@ def run_pipeline(
         "thumbnail": thumb_path,
         "description": str(desc_path),
         "videos": video_outputs,
+        "music": music_path or "",
     }
 
     if upload:
@@ -126,6 +134,8 @@ def main():
     parser.add_argument("--output", default="output", help="Output base directory")
     parser.add_argument("--source-image", default="", help="Path to custom thumbnail image (skip frame extraction)")
     parser.add_argument("--no-filter", action="store_true", help="Skip cartoon filter on thumbnail (use raw photo)")
+    parser.add_argument("--no-music", action="store_true", help="Skip background music")
+    parser.add_argument("--music-dir", default="music", help="Directory containing music files")
     args = parser.parse_args()
 
     if args.batch:
@@ -150,6 +160,7 @@ def main():
                 output_base=args.output,
                 source_image=args.source_image,
                 no_filter=args.no_filter,
+                music_dir="" if args.no_music else args.music_dir,
             )
     elif args.input:
         run_pipeline(
@@ -163,6 +174,7 @@ def main():
             output_base=args.output,
             source_image=args.source_image,
             no_filter=args.no_filter,
+            music_dir="" if args.no_music else args.music_dir,
         )
     else:
         parser.print_help()
