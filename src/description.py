@@ -81,3 +81,36 @@ def save_description(transcript: dict, title: str, config: dict, output_dir: Pat
     desc_path = output_dir / "description.txt"
     desc_path.write_text(desc)
     return desc_path
+
+
+def generate_instagram_caption(transcript: dict, title: str, config: dict) -> str:
+    """Generate an Instagram Reels caption from transcript.
+
+    Instagram style: shorter, emoji-heavy, hashtag-rich, with a hook line.
+    """
+    full_text = transcript.get("text", "")
+    sentences = re.split(r"(?<=[.!?])\s+", full_text)
+    hook = sentences[0] if sentences else title
+    summary = " ".join(sentences[:2]).strip()
+
+    tags = config.get("youtube", {}).get("default_tags", [])
+    hashtags = " ".join(f"#{tag.replace(' ', '')}" for tag in tags)
+    # Add Instagram-specific hashtags
+    hashtags += " #BasketballTips #CoachLife #HoopsEducation #BasketballIQ"
+
+    return f"""🏀 {hook}
+
+{summary}
+
+💡 Full breakdown on the blog — link in bio!
+
+{hashtags}"""
+
+
+def save_instagram_caption(transcript: dict, title: str, config: dict, output_dir: Path) -> Path:
+    """Save Instagram caption to file."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    caption = generate_instagram_caption(transcript, title, config)
+    caption_path = output_dir / "instagram_caption.txt"
+    caption_path.write_text(caption)
+    return caption_path

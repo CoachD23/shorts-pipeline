@@ -10,7 +10,7 @@ import yaml
 from src.transcribe import transcribe_video, save_transcript
 from src.captions import save_captions
 from src.thumbnail import generate_thumbnail
-from src.description import generate_description, save_description
+from src.description import generate_description, save_description, save_instagram_caption
 from src.video import process_video, extract_frame
 from src.upload import upload_video
 from src.music import find_music_file, build_music_ffmpeg_args
@@ -78,6 +78,9 @@ def run_pipeline(
     print(f"[5/6] Generating YouTube description...")
     desc_path = save_description(transcript, title, config, output_dir)
 
+    # Instagram caption
+    ig_path = save_instagram_caption(transcript, title, config, output_dir)
+
     print(f"[6/6] Processing video with FFmpeg...")
     video_outputs = process_video(
         input_path=input_path,
@@ -93,6 +96,7 @@ def run_pipeline(
         "captions_ass": str(ass_path),
         "thumbnail": thumb_path,
         "description": str(desc_path),
+        "instagram_caption": str(ig_path),
         "videos": video_outputs,
         "music": music_path or "",
     }

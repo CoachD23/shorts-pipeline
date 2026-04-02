@@ -1,5 +1,5 @@
 """Tests for YouTube description generator."""
-from src.description import generate_description, detect_timestamps
+from src.description import generate_description, detect_timestamps, generate_instagram_caption
 
 
 def test_detect_timestamps_finds_pauses():
@@ -30,3 +30,16 @@ def test_generate_description_contains_required_sections():
     assert "coachprincetonbasketball.com/blog" in desc
     assert "#PrincetonOffense" in desc
     assert "0:00" in desc
+
+
+def test_generate_instagram_caption():
+    transcript = {
+        "text": "This play breaks every zone. The point guard starts the weave.",
+        "segments": []
+    }
+    config = {"youtube": {"default_tags": ["Princeton Offense"]}}
+    caption = generate_instagram_caption(transcript, "Chin Entry", config)
+    assert "This play breaks every zone" in caption
+    assert "#PrincetonOffense" in caption
+    assert "#BasketballTips" in caption
+    assert "link in bio" in caption
