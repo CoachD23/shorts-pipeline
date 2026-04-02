@@ -50,6 +50,29 @@ def run_pipeline_async(video_path, title, hook, accent, crop, source_image, no_f
         output_dir = Path("output") / f"{date.today().isoformat()}-{slug}"
         output_dir.mkdir(parents=True, exist_ok=True)
 
+        # Stage 0: Check duration — Shorts must be ≤60s
+        pipeline_status["stage"] = "Checking video duration..."
+        pipeline_status["progress"] = 5
+        from src.video import _get_video_dimensions
+        import subprocess as _sp
+        dur_result = _sp.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", video_path],
+            capture_output=True, text=True,
+        )
+        duration = float(dur_result.stdout.strip()) if dur_result.stdout.strip() else 0
+
+        if duration > 60:
+            # Auto-trim: use first 59 seconds, or if we have clip extraction, find best segment
+            pipeline_status["stage"] = f"Video is {duration:.0f}s — trimming to 59s for Short..."
+            pipeline_status["progress"] = 7
+            trimmed_path = str(output_dir / "trimmed_input.mp4")
+            _sp.run(
+                ["ffmpeg", "-y", "-i", video_path, "-t", "59", "-c", "copy", trimmed_path],
+                capture_output=True, check=True,
+            )
+            original_path = video_path
+            video_path = trimmed_path
+
         # Stage 1: Transcribe
         pipeline_status["stage"] = "Transcribing with Whisper..."
         pipeline_status["progress"] = 10
