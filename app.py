@@ -25,7 +25,7 @@ pipeline_status = {
 }
 
 
-def run_pipeline_async(video_path, title, hook, accent, crop, source_image, no_filter, no_music):
+def run_pipeline_async(video_path, title, hook, accent, crop, source_image, no_filter, no_music, funnel="discovery"):
     """Run pipeline in background thread, updating status."""
     global pipeline_status
     try:
@@ -207,6 +207,12 @@ def run_pipeline_async(video_path, title, hook, accent, crop, source_image, no_f
             "length_variants": variants_info,
             "platform_exports": {k: os.path.basename(v) if not v.startswith("ERROR") else v for k, v in platform_exports.items()},
             "loop_info": loop_info,
+            "funnel": funnel,
+            "funnel_info": {
+                "discovery": {"label": "Discovery (60%)", "description": "Broad reach content to attract new viewers. Quick tips, hot takes, viral hooks."},
+                "middle": {"label": "Middle Funnel (30%)", "description": "Build trust and authority. Play breakdowns, detailed explanations, coaching insights."},
+                "monetization": {"label": "Monetization (10%)", "description": "Convert viewers to subscribers/customers. Course promos, clinic announcements."},
+            }.get(funnel, {"label": funnel, "description": ""}),
         }
 
     except Exception as e:
@@ -267,10 +273,11 @@ def process():
     source_image = request.form.get("source_image", "")
     no_filter = request.form.get("no_filter") == "true"
     no_music = request.form.get("no_music") == "true"
+    funnel = request.form.get("funnel", "discovery")
 
     thread = threading.Thread(
         target=run_pipeline_async,
-        args=(video_path, title, hook, accent, crop, source_image, no_filter, no_music),
+        args=(video_path, title, hook, accent, crop, source_image, no_filter, no_music, funnel),
     )
     thread.start()
 

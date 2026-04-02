@@ -490,6 +490,16 @@
                 <p class="subtitle">Customize how your Short is generated</p>
 
                 <div class="form-group">
+                    <label for="funnel">Content Funnel</label>
+                    <select id="funnel">
+                        <option value="discovery">Discovery (60%) — Attract new viewers</option>
+                        <option value="middle">Middle Funnel (30%) — Build authority</option>
+                        <option value="monetization">Monetization (10%) — Convert to action</option>
+                    </select>
+                    <p class="helper">Top creators use 60/30/10 content mix for optimal growth</p>
+                </div>
+
+                <div class="form-group">
                     <label for="crop">Vertical Crop Mode</label>
                     <select id="crop">
                         <option value="center">Center Crop (face/action focused)</option>
@@ -542,7 +552,10 @@
         <div class="section" id="step-5">
             <div class="card">
                 <h2>Your Short is Ready!</h2>
-                <p class="subtitle">Preview and download your outputs</p>
+                <p class="subtitle" id="result-subtitle">Preview and download your outputs</p>
+                <div id="funnel-badge" style="display: none; margin-bottom: 16px;">
+                    <span id="funnel-badge-text" style="display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; color: white;"></span>
+                </div>
 
                 <!-- Length Variants -->
                 <div id="length-variants" style="margin-bottom: 24px; display: none;">
@@ -730,6 +743,7 @@
                 formData.append('title', document.getElementById('title').value || 'Untitled');
                 formData.append('hook', document.getElementById('hook').value);
                 formData.append('accent', document.getElementById('accent').value);
+                formData.append('funnel', document.getElementById('funnel').value);
                 formData.append('crop', document.getElementById('crop').value);
                 formData.append('source_image', document.getElementById('source-image').value);
                 formData.append('no_filter', document.getElementById('no-filter').checked);
@@ -779,6 +793,17 @@
             goStep(5);
             const folder = result.output_dir.split('/').pop();
             currentOutputDir = result.output_dir;
+
+            // Funnel badge
+            if (result.funnel_info) {
+                const badge = document.getElementById('funnel-badge');
+                const badgeText = document.getElementById('funnel-badge-text');
+                const colors = {discovery: '#2563EB', middle: '#F97316', monetization: '#EF4444'};
+                badge.style.display = 'block';
+                badgeText.style.background = colors[result.funnel] || '#666';
+                badgeText.textContent = result.funnel_info.label;
+                document.getElementById('result-subtitle').textContent = result.funnel_info.description;
+            }
 
             // Length variants
             if (result.length_variants && Object.keys(result.length_variants).length > 0) {
