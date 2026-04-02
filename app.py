@@ -299,6 +299,15 @@ def list_inbox():
     return jsonify({"files": sorted(files)})
 
 
+@app.route("/api/calendar")
+def get_calendar():
+    """Generate content calendar."""
+    weeks = request.args.get("weeks", 4, type=int)
+    from src.calendar import generate_calendar
+    cal = generate_calendar(num_weeks=weeks)
+    return jsonify({"calendar": cal})
+
+
 @app.route("/api/open-folder", methods=["POST"])
 def open_folder():
     """Open output folder in Finder."""
