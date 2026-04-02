@@ -7,6 +7,8 @@ from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
+from src.retry import retry_with_backoff
+
 
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload",
           "https://www.googleapis.com/auth/youtube.force-ssl"]
@@ -50,6 +52,7 @@ def get_authenticated_service(credentials_path: str = "credentials.json",
     return build("youtube", "v3", credentials=creds)
 
 
+@retry_with_backoff(max_retries=3, base_delay=2.0, exceptions=(Exception,))
 def upload_video(
     video_path: str,
     title: str,
