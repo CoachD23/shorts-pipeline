@@ -50,10 +50,9 @@ def run_pipeline_async(video_path, title, hook, accent, crop, source_image, no_f
         output_dir = Path("output") / f"{date.today().isoformat()}-{slug}"
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Stage 0: Check duration — Shorts must be ≤60s
+        # Stage 0: Check duration and create length variants
         pipeline_status["stage"] = "Checking video duration..."
         pipeline_status["progress"] = 5
-        from src.video import _get_video_dimensions
         import subprocess as _sp
         dur_result = _sp.run(
             ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", video_path],
@@ -61,17 +60,51 @@ def run_pipeline_async(video_path, title, hook, accent, crop, source_image, no_f
         )
         duration = float(dur_result.stdout.strip()) if dur_result.stdout.strip() else 0
 
+        # Short length presets with rationale
+        SHORT_LENGTHS = {
+            "hook_15s": {
+                "seconds": 15,
+                "label": "Hook (15s)",
+                "reason": "Highest completion + rewatch rate. Best for quick tips, single coaching points.",
+            },
+            "optimal_30s": {
+                "seconds": 30,
+                "label": "Optimal (30s)",
+                "reason": "Sweet spot — high retention + enough depth. Best for play breakdowns, drill demos.",
+            },
+            "detailed_45s": {
+                "seconds": 45,
+                "label": "Detailed (45s)",
+                "reason": "Good for multi-step explanations, full play sequences with reads.",
+            },
+            "max_59s": {
+                "seconds": 59,
+                "label": "Full (59s)",
+                "reason": "Maximum Short length. Use for complex film analysis with multiple coaching points.",
+            },
+        }
+
+        # If video is longer than 60s, create trimmed variants
+        length_variants = {}
         if duration > 60:
-            # Auto-trim: use first 59 seconds, or if we have clip extraction, find best segment
-            pipeline_status["stage"] = f"Video is {duration:.0f}s — trimming to 59s for Short..."
+            pipeline_status["stage"] = f"Video is {duration:.0f}s — creating length variants..."
             pipeline_status["progress"] = 7
-            trimmed_path = str(output_dir / "trimmed_input.mp4")
-            _sp.run(
-                ["ffmpeg", "-y", "-i", video_path, "-t", "59", "-c", "copy", trimmed_path],
-                capture_output=True, check=True,
-            )
-            original_path = video_path
-            video_path = trimmed_path
+            for key, preset in SHORT_LENGTHS.items():
+                trimmed_path = str(output_dir / f"input_{key}.mp4")
+                _sp.run(
+                    ["ffmpeg", "-y", "-i", video_path, "-t", str(preset["seconds"]), "-c", "copy", trimmed_path],
+                    capture_output=True, check=True,
+                )
+                length_variants[key] = {**preset, "path": trimmed_path}
+
+            # Use 30s optimal as the default for processing
+            video_path = length_variants["optimal_30s"]["path"]
+        elif duration > 30:
+            # Video is 30-60s — use as-is but note which preset it fits
+            for key, preset in SHORT_LENGTHS.items():
+                if duration <= preset["seconds"]:
+                    length_variants[key] = {**preset, "path": video_path, "note": "original fits"}
+                    break
 
         # Stage 1: Transcribe
         pipeline_status["stage"] = "Transcribing with Whisper..."
@@ -134,6 +167,17 @@ def run_pipeline_async(video_path, title, hook, accent, crop, source_image, no_f
 
         pipeline_status["stage"] = "Complete!"
         pipeline_status["progress"] = 100
+        # Build length variants info for UI
+        variants_info = {}
+        for key, info in length_variants.items():
+            variant_file = os.path.basename(info["path"]) if "path" in info else ""
+            variants_info[key] = {
+                "label": info["label"],
+                "reason": info["reason"],
+                "seconds": info["seconds"],
+                "file": variant_file,
+            }
+
         pipeline_status["result"] = {
             "output_dir": str(output_dir),
             "thumbnail": os.path.basename(thumb_path),
@@ -142,6 +186,8 @@ def run_pipeline_async(video_path, title, hook, accent, crop, source_image, no_f
             "blog_embed": blog_path.read_text() if blog_path.exists() else "",
             "transcript": md_path.read_text() if md_path.exists() else "",
             "videos": {k: os.path.basename(v) for k, v in video_outputs.items()},
+            "duration": duration,
+            "length_variants": variants_info,
         }
 
     except Exception as e:
