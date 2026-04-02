@@ -30,6 +30,8 @@ def run_pipeline(
     upload: bool = False,
     config_path: str = "config.yaml",
     output_base: str = "output",
+    source_image: str = "",       # NEW
+    no_filter: bool = False,      # NEW
 ) -> dict:
     """Run the full pipeline on a single video."""
     config = load_config(config_path)
@@ -48,12 +50,21 @@ def run_pipeline(
     ass_path = save_captions(transcript, config, output_dir)
 
     print(f"[4/6] Generating thumbnail...")
-    frame_path = extract_frame(input_path, str(output_dir / "frame.png"), timestamp=1.0)
+    if source_image:
+        frame_path = source_image
+    else:
+        frame_path = extract_frame(input_path, str(output_dir / "frame.png"), timestamp=1.0)
+
+    # Override cartoon filter if --no-filter
+    thumb_config = dict(config)
+    if no_filter:
+        thumb_config = {**config, "thumbnail": {**config.get("thumbnail", {}), "cartoon_strength": "none"}}
+
     thumb_path = generate_thumbnail(
         source_image_path=frame_path,
         hook_text=hook_text or title.upper(),
         accent_word=accent_word or title.split()[-1].upper(),
-        config=config,
+        config=thumb_config if no_filter else config,
         output_dir=str(output_dir),
     )
 
@@ -113,6 +124,8 @@ def main():
     parser.add_argument("--batch", action="store_true", help="Process all files in inbox/")
     parser.add_argument("--config", default="config.yaml", help="Path to config file")
     parser.add_argument("--output", default="output", help="Output base directory")
+    parser.add_argument("--source-image", default="", help="Path to custom thumbnail image (skip frame extraction)")
+    parser.add_argument("--no-filter", action="store_true", help="Skip cartoon filter on thumbnail (use raw photo)")
     args = parser.parse_args()
 
     if args.batch:
@@ -135,6 +148,8 @@ def main():
                 upload=not args.no_upload,
                 config_path=args.config,
                 output_base=args.output,
+                source_image=args.source_image,
+                no_filter=args.no_filter,
             )
     elif args.input:
         run_pipeline(
@@ -146,6 +161,8 @@ def main():
             upload=not args.no_upload,
             config_path=args.config,
             output_base=args.output,
+            source_image=args.source_image,
+            no_filter=args.no_filter,
         )
     else:
         parser.print_help()

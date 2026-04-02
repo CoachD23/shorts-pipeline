@@ -29,6 +29,8 @@ BADGE_ZONE = (CANVAS_WIDTH - 290, CANVAS_HEIGHT - 75, CANVAS_WIDTH, CANVAS_HEIGH
 
 def apply_cartoon_filter(image: Image.Image, strength: str = "medium") -> Image.Image:
     """Apply cartoon/illustration effect using bilateral filtering + edge detection."""
+    if strength == "none":
+        return image
     iterations = {"light": 3, "medium": 5, "heavy": 7}.get(strength, 5)
     img_array = np.array(image)
     img_bgr = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
