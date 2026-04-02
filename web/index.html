@@ -550,6 +550,11 @@
                     <div id="length-variants-list" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;"></div>
                 </div>
 
+                <div id="platform-exports" style="margin-bottom: 24px; display: none;">
+                    <h3 style="font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-light); margin-bottom: 12px;">Cross-Platform Downloads</h3>
+                    <div id="platform-exports-list" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
+                </div>
+
                 <!-- Video Players -->
                 <div style="margin-bottom: 24px;">
                     <h3 style="font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-light); margin-bottom: 12px;">YouTube Short (Vertical)</h3>
@@ -780,6 +785,21 @@
                         <p style="font-size: 12px; color: var(--text-light); margin: 0;">${v.reason}</p>
                         ${v.file ? `<a href="/output/${folder}/${v.file}" download style="font-size: 12px; color: ${colors[key]}; margin-top: 4px; display: inline-block;">Download ${v.seconds}s version</a>` : ''}
                     </div>`
+                ).join('');
+            }
+
+            // Platform exports
+            if (result.platform_exports && Object.keys(result.platform_exports).length > 0) {
+                const pContainer = document.getElementById('platform-exports');
+                const pList = document.getElementById('platform-exports-list');
+                pContainer.style.display = 'block';
+                const platformColors = {tiktok: '#000000', instagram_reels: '#E1306C', instagram_feed: '#833AB4'};
+                const platformIcons = {tiktok: 'TikTok', instagram_reels: 'IG Reels', instagram_feed: 'IG Feed'};
+                pList.innerHTML = Object.entries(result.platform_exports).map(([key, file]) =>
+                    file.startsWith('ERROR') ? '' :
+                    `<a href="/output/${folder}/${file}" download style="display: inline-flex; align-items: center; gap: 6px; padding: 10px 16px; background: ${platformColors[key] || '#666'}; color: white; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600;">
+                        ${platformIcons[key] || key}
+                    </a>`
                 ).join('');
             }
 

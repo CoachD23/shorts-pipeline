@@ -41,6 +41,8 @@ def run_pipeline_async(video_path, title, hook, accent, crop, source_image, no_f
         from src.video import process_video, extract_frame
         from src.hooks import detect_hook
         from src.music import find_music_file
+        from src.platforms import export_all_platforms, PLATFORMS
+        from src.loop_detect import detect_loop
 
         config_path = Path(__file__).parent / "config.yaml"
         with open(config_path) as f:
@@ -166,6 +168,14 @@ def run_pipeline_async(video_path, title, hook, accent, crop, source_image, no_f
             crop_strategy=crop,
         )
 
+        # Stage 6.5: Cross-platform exports
+        pipeline_status["stage"] = "Exporting for TikTok & Instagram..."
+        pipeline_status["progress"] = 90
+        platform_exports = export_all_platforms(
+            input_path=video_path,
+            output_dir=str(output_dir),
+        )
+
         pipeline_status["stage"] = "Complete!"
         pipeline_status["progress"] = 100
         # Build length variants info for UI
@@ -190,6 +200,7 @@ def run_pipeline_async(video_path, title, hook, accent, crop, source_image, no_f
             "videos": {k: os.path.basename(v) for k, v in video_outputs.items()},
             "duration": duration,
             "length_variants": variants_info,
+            "platform_exports": {k: os.path.basename(v) if not v.startswith("ERROR") else v for k, v in platform_exports.items()},
         }
 
     except Exception as e:
