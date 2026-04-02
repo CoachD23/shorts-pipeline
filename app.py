@@ -204,6 +204,18 @@ def list_inbox():
     return jsonify({"files": sorted(files)})
 
 
+@app.route("/api/open-folder", methods=["POST"])
+def open_folder():
+    """Open output folder in Finder."""
+    import subprocess
+    data = request.get_json() or {}
+    folder = data.get("path", "output")
+    folder_path = Path(folder)
+    if folder_path.exists():
+        subprocess.Popen(["open", str(folder_path)])
+    return jsonify({"status": "opened"})
+
+
 @app.route("/api/outputs")
 def list_outputs():
     output_dir = Path("output")

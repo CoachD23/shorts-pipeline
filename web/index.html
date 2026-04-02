@@ -544,11 +544,30 @@
                 <h2>Your Short is Ready!</h2>
                 <p class="subtitle">Preview and download your outputs</p>
 
-                <div class="result-grid">
-                    <div class="result-card">
-                        <h3>Thumbnail</h3>
-                        <img id="result-thumbnail" src="" alt="Thumbnail">
+                <!-- Video Players -->
+                <div style="margin-bottom: 24px;">
+                    <h3 style="font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-light); margin-bottom: 12px;">YouTube Short (Vertical)</h3>
+                    <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                        <div style="flex: 0 0 auto;">
+                            <video id="result-video-short" controls style="height: 360px; border-radius: 8px; background: #000; box-shadow: var(--shadow-lg);"></video>
+                        </div>
+                        <div style="flex: 1; min-width: 200px;">
+                            <h3 style="font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-light); margin-bottom: 8px;">Thumbnail</h3>
+                            <img id="result-thumbnail" src="" alt="Thumbnail" style="width: 100%; max-width: 400px; border-radius: 8px; box-shadow: var(--shadow);">
+                            <div style="margin-top: 8px;">
+                                <a id="download-short" href="#" download class="btn btn-cta" style="text-decoration: none; font-size: 13px; padding: 8px 16px;">Download Short</a>
+                                <a id="download-thumb" href="#" download class="btn btn-secondary" style="text-decoration: none; font-size: 13px; padding: 8px 16px; margin-left: 8px;">Download Thumbnail</a>
+                            </div>
+                        </div>
                     </div>
+                </div>
+
+                <div style="margin-bottom: 24px;">
+                    <h3 style="font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-light); margin-bottom: 8px;">Blog Embed Version (Original Ratio)</h3>
+                    <video id="result-video-embed" controls style="width: 100%; max-width: 640px; border-radius: 8px; background: #000; box-shadow: var(--shadow);"></video>
+                </div>
+
+                <div class="result-grid">
                     <div class="result-card">
                         <h3>YouTube Description</h3>
                         <pre id="result-description"></pre>
@@ -560,11 +579,11 @@
                         <button class="copy-btn" onclick="copyText('result-instagram')">Copy</button>
                     </div>
                     <div class="result-card">
-                        <h3>Blog Embed</h3>
+                        <h3>Blog Embed HTML</h3>
                         <pre id="result-blog"></pre>
                         <button class="copy-btn" onclick="copyText('result-blog')">Copy</button>
                     </div>
-                    <div class="result-card" style="grid-column: 1 / -1;">
+                    <div class="result-card">
                         <h3>Transcript</h3>
                         <pre id="result-transcript"></pre>
                         <button class="copy-btn" onclick="copyText('result-transcript')">Copy</button>
@@ -572,8 +591,8 @@
                 </div>
 
                 <div class="btn-row">
-                    <button class="btn btn-secondary" onclick="openOutputFolder()">Open Output Folder</button>
-                    <button class="btn btn-primary" onclick="goStep(1)">Process Another Video</button>
+                    <button class="btn btn-secondary" id="btn-open-folder" onclick="openOutputFolder()">Open in Finder</button>
+                    <button class="btn btn-primary" onclick="location.reload()">Process Another Video</button>
                 </div>
             </div>
         </div>
@@ -720,12 +739,34 @@
                 });
         }
 
+        let currentOutputDir = '';
+
         function showResults(result) {
             goStep(5);
+            const folder = result.output_dir.split('/').pop();
+            currentOutputDir = result.output_dir;
 
-            if (result.thumbnail) {
-                document.getElementById('result-thumbnail').src = `/output/${result.output_dir.split('/').pop()}/${result.thumbnail}`;
+            // Video players
+            const shortVideo = result.videos && result.videos['short-captioned.mp4'];
+            const embedVideo = result.videos && result.videos['embed-captioned.mp4'];
+
+            if (shortVideo) {
+                const shortUrl = `/output/${folder}/${shortVideo}`;
+                document.getElementById('result-video-short').src = shortUrl;
+                document.getElementById('download-short').href = shortUrl;
             }
+            if (embedVideo) {
+                document.getElementById('result-video-embed').src = `/output/${folder}/${embedVideo}`;
+            }
+
+            // Thumbnail
+            if (result.thumbnail) {
+                const thumbUrl = `/output/${folder}/${result.thumbnail}`;
+                document.getElementById('result-thumbnail').src = thumbUrl;
+                document.getElementById('download-thumb').href = thumbUrl;
+            }
+
+            // Text outputs
             document.getElementById('result-description').textContent = result.description || '';
             document.getElementById('result-instagram').textContent = result.instagram || '';
             document.getElementById('result-blog').textContent = result.blog_embed || '';
@@ -742,8 +783,8 @@
         }
 
         function openOutputFolder() {
-            // This works on Mac via a simple alert with the path
-            alert('Output folder: ~/Shorts/output/\n\nOpen Finder and navigate there.');
+            // Open Finder to the output folder via a backend endpoint
+            fetch('/api/open-folder', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({path: currentOutputDir}) });
         }
     </script>
 </body>
