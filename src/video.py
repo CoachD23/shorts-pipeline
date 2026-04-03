@@ -25,8 +25,10 @@ def _get_video_dimensions(input_path: str) -> tuple[int, int]:
         ],
         capture_output=True, text=True, check=True,
     )
-    w, h = result.stdout.strip().split("x")
-    return int(w), int(h)
+    parts = result.stdout.strip().split("x")
+    if len(parts) != 2:
+        raise ValueError(f"Unexpected ffprobe output: {result.stdout!r}")
+    return int(parts[0]), int(parts[1])
 
 
 def build_ffmpeg_commands(
@@ -129,6 +131,10 @@ def process_video(
     outputs = {}
     names = ["short-captioned.mp4", "embed-captioned.mp4", "no-captions.mp4"]
     for cmd, name in zip(commands, names):
-        subprocess.run(cmd, capture_output=True, check=True)
+        try:
+            subprocess.run(cmd, capture_output=True, check=True)
+        except subprocess.CalledProcessError as e:
+            stderr = e.stderr.decode() if e.stderr else "no stderr"
+            raise RuntimeError(f"FFmpeg failed for {name}: {stderr}") from e
         outputs[name] = str(output_dir_path / name)
     return outputs

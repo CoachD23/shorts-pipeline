@@ -22,7 +22,8 @@ PROJECT_DIR = Path(__file__).parent
 OUTPUT_DIR = PROJECT_DIR / "output"
 INBOX_DIR = PROJECT_DIR / "inbox"
 
-# Pipeline status tracking
+# Pipeline status tracking — thread-safe via lock
+_status_lock = threading.Lock()
 pipeline_status = {
     "running": False,
     "stage": "",
@@ -32,13 +33,23 @@ pipeline_status = {
 }
 
 
+def _update_status(**kwargs):
+    """Thread-safe status update."""
+    with _status_lock:
+        pipeline_status.update(kwargs)
+
+
+def _get_status():
+    """Thread-safe status read."""
+    with _status_lock:
+        return dict(pipeline_status)
+
+
 def run_pipeline_async(video_path, title, hook, accent, crop, source_image, no_filter, no_music, funnel="discovery"):
     """Run pipeline in background thread, updating status."""
     global pipeline_status
     try:
-        pipeline_status["running"] = True
-        pipeline_status["error"] = ""
-        pipeline_status["result"] = None
+        _update_status(running=True, error="", result=None, stage="", progress=0)
 
         import yaml
         from src.transcribe import transcribe_video, save_transcript
@@ -60,8 +71,7 @@ def run_pipeline_async(video_path, title, hook, accent, crop, source_image, no_f
         output_dir.mkdir(parents=True, exist_ok=True)
 
         # Stage 0: Check duration and create length variants
-        pipeline_status["stage"] = "Checking video duration..."
-        pipeline_status["progress"] = 5
+        _update_status(stage="Checking video duration...", progress=5)
         import subprocess as _sp
         dur_result = _sp.run(
             ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", video_path],
@@ -96,8 +106,7 @@ def run_pipeline_async(video_path, title, hook, accent, crop, source_image, no_f
         # If video is longer than 60s, create trimmed variants
         length_variants = {}
         if duration > 60:
-            pipeline_status["stage"] = f"Video is {duration:.0f}s — creating length variants..."
-            pipeline_status["progress"] = 7
+            _update_status(stage=f"Video is {duration:.0f}s — creating length variants...", progress=7)
             for key, preset in SHORT_LENGTHS.items():
                 trimmed_path = str(output_dir / f"input_{key}.mp4")
                 _sp.run(
@@ -116,8 +125,8 @@ def run_pipeline_async(video_path, title, hook, accent, crop, source_image, no_f
                     break
 
         # Stage 1: Transcribe
-        pipeline_status["stage"] = "Transcribing with Whisper..."
-        pipeline_status["progress"] = 10
+        _update_status(stage="Transcribing with Whisper...")
+        _update_status(progress=10)
         transcript = transcribe_video(video_path, model_size="base")
 
         # Auto-detect hook if not provided
@@ -128,18 +137,18 @@ def run_pipeline_async(video_path, title, hook, accent, crop, source_image, no_f
                 accent = hook_result["accent_word"]
 
         # Stage 2: Save transcript
-        pipeline_status["stage"] = "Saving transcript..."
-        pipeline_status["progress"] = 25
+        _update_status(stage="Saving transcript...")
+        _update_status(progress=25)
         json_path, md_path = save_transcript(transcript, output_dir, title)
 
         # Stage 3: Captions
-        pipeline_status["stage"] = "Generating kinetic captions..."
-        pipeline_status["progress"] = 40
+        _update_status(stage="Generating kinetic captions...")
+        _update_status(progress=40)
         ass_path = save_captions(transcript, config, output_dir)
 
         # Stage 4: Thumbnail
-        pipeline_status["stage"] = "Generating thumbnail..."
-        pipeline_status["progress"] = 55
+        _update_status(stage="Generating thumbnail...")
+        _update_status(progress=55)
         if source_image and Path(source_image).exists():
             frame_path = source_image
         else:
@@ -158,16 +167,16 @@ def run_pipeline_async(video_path, title, hook, accent, crop, source_image, no_f
         )
 
         # Stage 5: Description + Instagram + Blog embed
-        pipeline_status["stage"] = "Generating descriptions..."
-        pipeline_status["progress"] = 70
+        _update_status(stage="Generating descriptions...")
+        _update_status(progress=70)
         desc_path = save_description(transcript, title, config, output_dir)
         ig_path = save_instagram_caption(transcript, title, config, output_dir)
         blog_path = save_blog_embed(transcript, title, config, output_dir)
         pinned_path = save_pinned_comment(transcript, title, output_dir)
 
         # Stage 6: Video processing
-        pipeline_status["stage"] = "Processing video with FFmpeg..."
-        pipeline_status["progress"] = 85
+        _update_status(stage="Processing video with FFmpeg...")
+        _update_status(progress=85)
         video_outputs = process_video(
             input_path=video_path,
             ass_path=str(ass_path),
@@ -176,20 +185,20 @@ def run_pipeline_async(video_path, title, hook, accent, crop, source_image, no_f
         )
 
         # Stage 6.5: Cross-platform exports
-        pipeline_status["stage"] = "Exporting for TikTok & Instagram..."
-        pipeline_status["progress"] = 90
+        _update_status(stage="Exporting for TikTok & Instagram...")
+        _update_status(progress=90)
         platform_exports = export_all_platforms(
             input_path=video_path,
             output_dir=str(output_dir),
         )
 
         # Loop detection
-        pipeline_status["stage"] = "Analyzing loop potential..."
-        pipeline_status["progress"] = 92
+        _update_status(stage="Analyzing loop potential...")
+        _update_status(progress=92)
         loop_info = detect_loop(video_path, str(output_dir))
 
-        pipeline_status["stage"] = "Complete!"
-        pipeline_status["progress"] = 100
+        _update_status(stage="Complete!")
+        _update_status(progress=100)
         # Build length variants info for UI
         variants_info = {}
         for key, info in length_variants.items():
@@ -201,7 +210,7 @@ def run_pipeline_async(video_path, title, hook, accent, crop, source_image, no_f
                 "file": variant_file,
             }
 
-        pipeline_status["result"] = {
+        _update_status(result={
             "output_dir": str(output_dir),
             "thumbnail": os.path.basename(thumb_path),
             "description": desc_path.read_text() if desc_path.exists() else "",
@@ -220,7 +229,7 @@ def run_pipeline_async(video_path, title, hook, accent, crop, source_image, no_f
                 "middle": {"label": "Middle Funnel (30%)", "description": "Build trust and authority. Play breakdowns, detailed explanations, coaching insights."},
                 "monetization": {"label": "Monetization (10%)", "description": "Convert viewers to subscribers/customers. Course promos, clinic announcements."},
             }.get(funnel, {"label": funnel, "description": ""}),
-        }
+        })
 
     except Exception as e:
         import traceback
@@ -229,10 +238,10 @@ def run_pipeline_async(video_path, title, hook, accent, crop, source_image, no_f
         error_msg = str(e)
         if "/" in error_msg or "\\" in error_msg:
             error_msg = f"Processing failed: {type(e).__name__}. Check server logs for details."
-        pipeline_status["error"] = error_msg
-        pipeline_status["stage"] = "Error"
+        _update_status(error=error_msg)
+        _update_status(stage="Error")
     finally:
-        pipeline_status["running"] = False
+        _update_status(running=False)
 
 
 @app.route("/")
@@ -243,20 +252,18 @@ def index():
 @app.route("/api/reset", methods=["POST"])
 def reset():
     """Clear error state so a new job can start."""
-    global pipeline_status
-    if not pipeline_status["running"]:
-        pipeline_status = {"running": False, "stage": "", "progress": 0, "error": "", "result": None}
+    with _status_lock:
+        if not pipeline_status["running"]:
+            pipeline_status.update({"running": False, "stage": "", "progress": 0, "error": "", "result": None})
     return jsonify({"status": "reset"})
 
 
 @app.route("/api/process", methods=["POST"])
 def process():
-    global pipeline_status
-    if pipeline_status["running"]:
-        return jsonify({"error": "Pipeline already running"}), 409
-
-    # Clear any previous error state
-    pipeline_status = {"running": False, "stage": "", "progress": 0, "error": "", "result": None}
+    with _status_lock:
+        if pipeline_status["running"]:
+            return jsonify({"error": "Pipeline already running"}), 409
+        pipeline_status.update({"running": False, "stage": "", "progress": 0, "error": "", "result": None})
 
     # Handle file upload or inbox file
     video_path = request.form.get("inbox_file", "")
@@ -315,7 +322,7 @@ def process():
 
 @app.route("/api/status")
 def status():
-    return jsonify(pipeline_status)
+    return jsonify(_get_status())
 
 
 @app.route("/api/inbox")

@@ -69,6 +69,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text"
     for segment in transcript.get("segments", []):
         all_words.extend(segment.get("words", []))
 
+    if not all_words:
+        import logging
+        logging.warning("No word-level timestamps in transcript — captions will be empty. "
+                        "Ensure transcribe_video is called with word_timestamps=True.")
+
     groups = group_words(all_words, wpg)
 
     for group in groups:
