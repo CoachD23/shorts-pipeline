@@ -7,6 +7,7 @@ from datetime import date
 from pathlib import Path
 
 from flask import Flask, render_template, request, jsonify, send_from_directory
+from werkzeug.utils import secure_filename
 
 # Ensure our bundled ffmpeg/ffprobe (with libass) are on PATH first, then Homebrew
 project_bin = str(Path(__file__).parent / "bin")
@@ -14,6 +15,12 @@ homebrew_bin = "/opt/homebrew/bin"
 os.environ["PATH"] = project_bin + ":" + homebrew_bin + ":" + os.environ.get("PATH", "")
 
 app = Flask(__name__, template_folder="web", static_folder="web/static")
+app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024 * 1024  # 2 GB upload limit
+
+# Absolute paths for security
+PROJECT_DIR = Path(__file__).parent
+OUTPUT_DIR = PROJECT_DIR / "output"
+INBOX_DIR = PROJECT_DIR / "inbox"
 
 # Pipeline status tracking
 pipeline_status = {
@@ -216,7 +223,13 @@ def run_pipeline_async(video_path, title, hook, accent, crop, source_image, no_f
         }
 
     except Exception as e:
-        pipeline_status["error"] = str(e)
+        import traceback
+        traceback.print_exc()  # Log full error server-side
+        # SECURITY: Sanitize error message — don't leak internal paths
+        error_msg = str(e)
+        if "/" in error_msg or "\\" in error_msg:
+            error_msg = f"Processing failed: {type(e).__name__}. Check server logs for details."
+        pipeline_status["error"] = error_msg
         pipeline_status["stage"] = "Error"
     finally:
         pipeline_status["running"] = False
@@ -247,8 +260,16 @@ def process():
 
     # Handle file upload or inbox file
     video_path = request.form.get("inbox_file", "")
+    inbox = INBOX_DIR
+    inbox.mkdir(exist_ok=True)
+
     if video_path:
-        video_path = str(Path("inbox") / video_path)
+        # SECURITY: Strip directory components to prevent path traversal
+        safe_name = Path(video_path).name
+        resolved = (inbox / safe_name).resolve()
+        if not str(resolved).startswith(str(inbox.resolve())):
+            return jsonify({"error": "Invalid file path"}), 400
+        video_path = str(resolved)
     else:
         video = request.files.get("video")
         if not video:
@@ -260,17 +281,25 @@ def process():
         if ext not in video_exts:
             return jsonify({"error": f"Invalid file type '{ext}'. Upload a video file ({', '.join(video_exts)})"}), 400
 
-        # Save uploaded file
-        inbox = Path("inbox")
-        inbox.mkdir(exist_ok=True)
-        video_path = str(inbox / video.filename)
+        # SECURITY: Sanitize filename to prevent path traversal
+        safe_name = secure_filename(video.filename)
+        if not safe_name:
+            return jsonify({"error": "Invalid filename"}), 400
+        video_path = str(inbox / safe_name)
         video.save(video_path)
 
     title = request.form.get("title", "Untitled")
     hook = request.form.get("hook", "")
     accent = request.form.get("accent", "")
     crop = request.form.get("crop", "center")
-    source_image = request.form.get("source_image", "")
+    # SECURITY: Restrict source_image to inbox/output dirs only
+    source_image_raw = request.form.get("source_image", "")
+    source_image = ""
+    if source_image_raw:
+        si_path = Path(source_image_raw).resolve()
+        allowed_dirs = [INBOX_DIR.resolve(), OUTPUT_DIR.resolve(), Path.home() / "Documents", Path.home() / "Pictures"]
+        if any(str(si_path).startswith(str(d)) for d in allowed_dirs):
+            source_image = str(si_path)
     no_filter = request.form.get("no_filter") == "true"
     no_music = request.form.get("no_music") == "true"
     funnel = request.form.get("funnel", "discovery")
@@ -291,11 +320,10 @@ def status():
 
 @app.route("/api/inbox")
 def list_inbox():
-    inbox = Path("inbox")
-    if not inbox.exists():
+    if not INBOX_DIR.exists():
         return jsonify({"files": []})
     exts = {".mp4", ".mov", ".avi", ".mkv", ".webm"}
-    files = [f.name for f in inbox.iterdir() if f.suffix.lower() in exts]
+    files = [f.name for f in INBOX_DIR.iterdir() if f.suffix.lower() in exts]
     return jsonify({"files": sorted(files)})
 
 
@@ -310,31 +338,35 @@ def get_calendar():
 
 @app.route("/api/open-folder", methods=["POST"])
 def open_folder():
-    """Open output folder in Finder."""
-    import subprocess
+    """Open output folder in Finder — restricted to output directory."""
+    import subprocess as _sp
     data = request.get_json() or {}
-    folder = data.get("path", "output")
-    folder_path = Path(folder)
+    folder = data.get("path", str(OUTPUT_DIR))
+    folder_path = Path(folder).resolve()
+    # SECURITY: Only allow opening folders under output directory
+    if not str(folder_path).startswith(str(OUTPUT_DIR.resolve())):
+        folder_path = OUTPUT_DIR
     if folder_path.exists():
-        subprocess.Popen(["open", str(folder_path)])
+        _sp.Popen(["open", str(folder_path)])
     return jsonify({"status": "opened"})
 
 
 @app.route("/api/outputs")
 def list_outputs():
-    output_dir = Path("output")
-    if not output_dir.exists():
+    if not OUTPUT_DIR.exists():
         return jsonify({"folders": []})
-    folders = sorted([d.name for d in output_dir.iterdir() if d.is_dir()], reverse=True)
+    folders = sorted([d.name for d in OUTPUT_DIR.iterdir() if d.is_dir()], reverse=True)
     return jsonify({"folders": folders})
 
 
 @app.route("/output/<path:filepath>")
 def serve_output(filepath):
-    return send_from_directory("output", filepath)
+    # SECURITY: Use absolute path for send_from_directory
+    return send_from_directory(str(OUTPUT_DIR), filepath)
 
 
 if __name__ == "__main__":
     print("\n🏀 Shorts Pipeline UI")
     print("   Open: http://localhost:8080\n")
-    app.run(debug=False, port=8080, host="0.0.0.0")
+    # SECURITY: Bind to localhost only — not accessible from network
+    app.run(debug=False, port=8080, host="127.0.0.1")
