@@ -754,7 +754,12 @@
                 formData.append('no_music', document.getElementById('no-music').checked);
 
                 fetch('/api/process', { method: 'POST', body: formData })
-                    .then(r => r.json())
+                    .then(r => {
+                        if (!r.ok && r.status === 500) {
+                            throw new Error('Server error — check that the video file is a valid .mp4/.mov (not a JPEG)');
+                        }
+                        return r.json();
+                    })
                     .then(data => {
                         if (data.error) {
                             document.getElementById('process-error').textContent = data.error;
