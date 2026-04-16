@@ -247,7 +247,7 @@
             font-weight: 600;
             border: none;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.15s ease;
             display: inline-flex;
             align-items: center;
             gap: 8px;
@@ -382,8 +382,48 @@
         }
 
         /* Section visibility */
-        .section { display: none; }
-        .section.active { display: block; }
+        .section {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        .section.active {
+            display: block;
+            opacity: 1;
+        }
+
+        /* Cursor pointers */
+        .btn, .upload-zone, .inbox-item, .copy-btn, select, input[type="file"] {
+            cursor: pointer;
+        }
+
+        /* Focus visible */
+        .btn:focus-visible, input:focus-visible, select:focus-visible, .upload-zone:focus-visible {
+            outline: 2px solid var(--primary);
+            outline-offset: 2px;
+        }
+
+        /* Reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* Spinner */
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.4);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            display: inline-block;
+        }
 
         /* Responsive */
         @media (max-width: 640px) {
@@ -431,7 +471,7 @@
                 <p class="subtitle">Drop your video file or pick from the inbox folder</p>
 
                 <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
-                    <div class="icon">&#127909;</div>
+                    <div class="icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--text-light)"><path d="M15.6 11.6L11.4 8.4C10.5 7.7 9.2 8.3 9.2 9.4V14.6C9.2 15.7 10.5 16.3 11.4 15.6L15.6 12.4C16.1 12 16.1 11.2 15.6 11.6Z"/><rect x="2" y="4" width="20" height="16" rx="3"/></svg></div>
                     <p>Click to select or drag and drop</p>
                     <p style="font-size: 12px; margin-top: 4px;">MP4, MOV, AVI, MKV, WebM (not JPEG/PNG)</p>
                 </div>
@@ -538,7 +578,7 @@
                 <p class="subtitle" id="process-stage">Starting pipeline...</p>
 
                 <div class="progress-container">
-                    <div class="progress-bar">
+                    <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Pipeline progress" id="progress-bar">
                         <div class="progress-fill" id="progress-fill"></div>
                     </div>
                     <p class="progress-label" id="progress-label">0%</p>
@@ -658,7 +698,7 @@
                     return `<div class="inbox-item" onclick="selectInboxFile('${f.path}')" style="padding: 8px 12px; cursor: pointer; border-radius: 6px; margin-bottom: 4px; font-size: 14px; transition: background 0.15s; display: flex; justify-content: space-between; align-items: center;"
                          onmouseover="this.style.background='var(--border)'" onmouseout="this.style.background=''"
                          id="inbox-${id}">
-                        <span>&#127909; ${f.name}</span>
+                        <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--primary);margin-right:6px;vertical-align:middle;"></span>${f.name}</span>
                         <span style="font-size: 11px; color: var(--text-light); background: var(--bg); padding: 2px 6px; border-radius: 4px;">${folderLabel}</span>
                     </div>`;
                 }).join('');
@@ -681,7 +721,7 @@
             const el = document.getElementById('inbox-' + filename.replace(/[^a-zA-Z0-9]/g, '_'));
             if (el) el.style.background = 'rgba(16, 185, 129, 0.15)';
             uploadZone.classList.remove('has-file');
-            uploadZone.innerHTML = '<div class="icon">&#127909;</div><p>Click to select or drag and drop</p><p style="font-size: 12px; margin-top: 4px;">MP4, MOV, AVI, MKV, WebM</p>';
+            uploadZone.innerHTML = '<div class="icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--text-light)"><path d="M15.6 11.6L11.4 8.4C10.5 7.7 9.2 8.3 9.2 9.4V14.6C9.2 15.7 10.5 16.3 11.4 15.6L15.6 12.4C16.1 12 16.1 11.2 15.6 11.6Z"/><rect x="2" y="4" width="20" height="16" rx="3"/></svg></div><p>Click to select or drag and drop</p><p style="font-size: 12px; margin-top: 4px;">MP4, MOV, AVI, MKV, WebM</p>';
             document.getElementById('btn-next-1').disabled = false;
         }
 
@@ -691,11 +731,18 @@
 
         fileInput.addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
-                selectedFile = e.target.files[0];
+                const file = e.target.files[0];
+                const videoExts = ['.mp4', '.mov', '.avi', '.mkv', '.webm'];
+                if (!videoExts.some(ext => file.name.toLowerCase().endsWith(ext))) {
+                    alert('Please select a video file (.mp4, .mov, etc), not an image.');
+                    fileInput.value = '';
+                    return;
+                }
+                selectedFile = file;
                 selectedInboxFile = null;  // Clear inbox selection
                 document.querySelectorAll('.inbox-item').forEach(el => el.style.background = '');
                 uploadZone.classList.add('has-file');
-                uploadZone.innerHTML = `<div class="icon">&#9989;</div><p class="filename">${selectedFile.name}</p><p>${(selectedFile.size / 1024 / 1024).toFixed(1)} MB</p>`;
+                uploadZone.innerHTML = `<div class="icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2"><path d="M20 6L9 17L4 12"/></svg></div><p class="filename">${selectedFile.name}</p><p>${(selectedFile.size / 1024 / 1024).toFixed(1)} MB</p>`;
                 document.getElementById('btn-next-1').disabled = false;
             }
         });
@@ -707,10 +754,16 @@
             e.preventDefault();
             uploadZone.style.borderColor = '';
             if (e.dataTransfer.files.length > 0) {
-                selectedFile = e.dataTransfer.files[0];
+                const file = e.dataTransfer.files[0];
+                const videoExts = ['.mp4', '.mov', '.avi', '.mkv', '.webm'];
+                if (!videoExts.some(ext => file.name.toLowerCase().endsWith(ext))) {
+                    alert('Please drop a video file (.mp4, .mov, etc), not an image.');
+                    return;
+                }
+                selectedFile = file;
                 fileInput.files = e.dataTransfer.files;
                 uploadZone.classList.add('has-file');
-                uploadZone.innerHTML = `<div class="icon">&#9989;</div><p class="filename">${selectedFile.name}</p><p>${(selectedFile.size / 1024 / 1024).toFixed(1)} MB</p>`;
+                uploadZone.innerHTML = `<div class="icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2"><path d="M20 6L9 17L4 12"/></svg></div><p class="filename">${selectedFile.name}</p><p>${(selectedFile.size / 1024 / 1024).toFixed(1)} MB</p>`;
                 document.getElementById('btn-next-1').disabled = false;
             }
         });
@@ -730,6 +783,11 @@
         }
 
         function startProcessing() {
+            const processBtn = document.querySelector('.btn-cta[onclick="startProcessing()"]');
+            if (processBtn) {
+                processBtn.disabled = true;
+                processBtn.innerHTML = '<span class="spinner"></span> Processing...';
+            }
             goStep(4);
             document.getElementById('process-error').style.display = 'none';
 
@@ -781,6 +839,7 @@
                 .then(data => {
                     document.getElementById('progress-fill').style.width = data.progress + '%';
                     document.getElementById('progress-label').textContent = data.progress + '%';
+                    document.getElementById('progress-bar').setAttribute('aria-valuenow', data.progress);
                     document.getElementById('process-stage').textContent = data.stage || 'Starting...';
 
                     if (data.error) {
