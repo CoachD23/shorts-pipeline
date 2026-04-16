@@ -21,6 +21,7 @@ app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024 * 1024  # 2 GB upload limit
 PROJECT_DIR = Path(__file__).parent
 OUTPUT_DIR = PROJECT_DIR / "output"
 INBOX_DIR = PROJECT_DIR / "inbox"
+DESKTOP_DROP = Path.home() / "Desktop" / "Shorts Drop"
 
 # Pipeline status tracking — thread-safe via lock
 _status_lock = threading.Lock()
@@ -267,16 +268,18 @@ def process():
 
     # Handle file upload or inbox file
     video_path = request.form.get("inbox_file", "")
-    inbox = INBOX_DIR
-    inbox.mkdir(exist_ok=True)
+    INBOX_DIR.mkdir(exist_ok=True)
+    DESKTOP_DROP.mkdir(exist_ok=True)
 
     if video_path:
-        # SECURITY: Strip directory components to prevent path traversal
-        safe_name = Path(video_path).name
-        resolved = (inbox / safe_name).resolve()
-        if not str(resolved).startswith(str(inbox.resolve())):
+        # SECURITY: Allow files from inbox OR Desktop Drop only
+        candidate = Path(video_path).resolve()
+        allowed = [INBOX_DIR.resolve(), DESKTOP_DROP.resolve()]
+        if not any(str(candidate).startswith(str(d)) for d in allowed):
             return jsonify({"error": "Invalid file path"}), 400
-        video_path = str(resolved)
+        if not candidate.exists():
+            return jsonify({"error": f"File not found: {candidate.name}"}), 400
+        video_path = str(candidate)
     else:
         video = request.files.get("video")
         if not video:
@@ -327,11 +330,15 @@ def status():
 
 @app.route("/api/inbox")
 def list_inbox():
-    if not INBOX_DIR.exists():
-        return jsonify({"files": []})
     exts = {".mp4", ".mov", ".avi", ".mkv", ".webm"}
-    files = [f.name for f in INBOX_DIR.iterdir() if f.suffix.lower() in exts]
-    return jsonify({"files": sorted(files)})
+    files = []
+    # Scan both inbox and Desktop drop folder
+    for folder in [INBOX_DIR, DESKTOP_DROP]:
+        if folder.exists():
+            for f in folder.iterdir():
+                if f.suffix.lower() in exts:
+                    files.append({"name": f.name, "folder": str(folder), "path": str(f)})
+    return jsonify({"files": sorted(files, key=lambda x: x["name"])})
 
 
 @app.route("/api/calendar")

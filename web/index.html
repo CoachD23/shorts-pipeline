@@ -444,7 +444,7 @@
                 <div id="inbox-list" style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; max-height: 200px; overflow-y: auto;">
                     <p style="color: var(--text-light); font-size: 13px;">Loading inbox...</p>
                 </div>
-                <p class="helper">Copy video files to ~/Shorts/inbox/ and they appear here</p>
+                <p class="helper">AirDrop .mov files to your Mac, then move to the <strong>Shorts Drop</strong> folder on your Desktop</p>
 
                 <div class="btn-row">
                     <button class="btn btn-primary" id="btn-next-1" disabled onclick="goStep(2)">Next</button>
@@ -649,16 +649,19 @@
             fetch('/api/inbox').then(r => r.json()).then(data => {
                 const list = document.getElementById('inbox-list');
                 if (!data.files || data.files.length === 0) {
-                    list.innerHTML = '<p style="color: var(--text-light); font-size: 13px;">No videos in inbox. Copy .mp4/.mov files to ~/Shorts/inbox/</p>';
+                    list.innerHTML = '<p style="color: var(--text-light); font-size: 13px;">No videos found. Drop .mov/.mp4 files into the <strong>Shorts Drop</strong> folder on your Desktop.</p>';
                     return;
                 }
-                list.innerHTML = data.files.map(f =>
-                    `<div class="inbox-item" onclick="selectInboxFile('${f}')" style="padding: 8px 12px; cursor: pointer; border-radius: 6px; margin-bottom: 4px; font-size: 14px; transition: background 0.15s;"
+                list.innerHTML = data.files.map(f => {
+                    const folderLabel = f.folder.includes('Desktop') ? 'Desktop' : 'inbox';
+                    const id = f.name.replace(/[^a-zA-Z0-9]/g, '_');
+                    return `<div class="inbox-item" onclick="selectInboxFile('${f.path}')" style="padding: 8px 12px; cursor: pointer; border-radius: 6px; margin-bottom: 4px; font-size: 14px; transition: background 0.15s; display: flex; justify-content: space-between; align-items: center;"
                          onmouseover="this.style.background='var(--border)'" onmouseout="this.style.background=''"
-                         id="inbox-${f.replace(/[^a-zA-Z0-9]/g, '_')}">
-                        &#127909; ${f}
-                    </div>`
-                ).join('');
+                         id="inbox-${id}">
+                        <span>&#127909; ${f.name}</span>
+                        <span style="font-size: 11px; color: var(--text-light); background: var(--bg); padding: 2px 6px; border-radius: 4px;">${folderLabel}</span>
+                    </div>`;
+                }).join('');
             });
         }
         loadInbox();
@@ -670,10 +673,11 @@
             }
         });
 
-        function selectInboxFile(filename) {
-            selectedInboxFile = filename;
+        function selectInboxFile(filepath) {
+            selectedInboxFile = filepath;
             selectedFile = null;
             document.querySelectorAll('.inbox-item').forEach(el => el.style.background = '');
+            const filename = filepath.split('/').pop();
             const el = document.getElementById('inbox-' + filename.replace(/[^a-zA-Z0-9]/g, '_'));
             if (el) el.style.background = 'rgba(16, 185, 129, 0.15)';
             uploadZone.classList.remove('has-file');
